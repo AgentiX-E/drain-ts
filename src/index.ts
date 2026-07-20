@@ -22,3 +22,21 @@ export {
   type DrainSnapshotCluster,
   type ExtractedParameter,
 } from "./core/index.js";
+
+// Masker exports
+export {
+  MaskingInstruction,
+  LogMasker,
+  IP_MASK,
+  NUM_MASK,
+  HEX_MASK,
+  UUID_MASK,
+  EMAIL_MASK,
+  DEFAULT_MASKING_INSTRUCTIONS,
+  EXTENDED_MASKING_INSTRUCTIONS,
+  ALL_MASKING_INSTRUCTIONS,
+} from "./masker/index.js";
+
+// TemplateMiner (main user-facing API)
+export { TemplateMiner, type PersistenceHandler } from "./TemplateMiner.js";
+export { TemplateMinerConfig } from "./TemplateMinerConfig.js";

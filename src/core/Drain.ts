@@ -170,8 +170,8 @@ export class Drain extends DrainBase {
       // Python: if cur_node_depth == token_count: break
       if (curNodeDepth === tokenCount) break;
 
-      const children = curNode.keyToChildNode;
-      const exactNode = children.get(token);
+      const children: Map<string, Node> = curNode.keyToChildNode;
+      const exactNode: Node | undefined = children.get(token);
 
       if (exactNode) {
         curNode = exactNode;
@@ -186,8 +186,14 @@ export class Drain extends DrainBase {
       curNodeDepth++;
     }
 
+    // At this point curNode is guaranteed to be a Node (not undefined),
+    // because the null check above and the loop both ensure valid assignments.
+    // However, TypeScript can't track this through the loop body
+    // with the early breaks. We assert the type here.
+    const leafNode: Node = curNode;
+
     // Step 4: Fast match over candidate clusters
-    return this.fastMatch(curNode.clusterIds, tokens, simTh, includeParams);
+    return this.fastMatch(leafNode.clusterIds, tokens, simTh, includeParams);
   }
 
   // ============================================================
