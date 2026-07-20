@@ -1,0 +1,77 @@
+{
+  "name": "@agentix-e/drain-ts",
+  "version": "0.1.0",
+  "description": "A TypeScript/Node.js streaming log template miner based on the Drain algorithm, ported with high fidelity from the official Python Drain3 implementation.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    },
+    "./presets": {
+      "import": "./dist/presets.mjs",
+      "require": "./dist/presets.cjs",
+      "types": "./dist/presets.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:benchmark": "vitest run --config vitest.benchmark.config.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/ tests/",
+    "format": "prettier --write 'src/**/*.ts' 'tests/**/*.ts'",
+    "format:check": "prettier --check 'src/**/*.ts' 'tests/**/*.ts'",
+    "prepublishOnly": "pnpm build && pnpm typecheck && pnpm test"
+  },
+  "keywords": [
+    "drain",
+    "drain3",
+    "log-parsing",
+    "log-template",
+    "log-miner",
+    "template-mining",
+    "log-analysis",
+    "observability",
+    "typescript",
+    "streaming"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AgentiX-E/drain-ts.git"
+  },
+  "license": "MIT",
+  "author": "Lambertyan <lambertyan@agentix-e.dev>",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "peerDependencies": {},
+  "peerDependenciesMeta": {},
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0",
+    "@vitest/coverage-v8": "^2.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
