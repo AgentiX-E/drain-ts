@@ -2,48 +2,15 @@ import { Drain } from "./core/Drain.js";
 import { LogCluster } from "./core/LogCluster.js";
 import { LogMasker } from "./masker/LogMasker.js";
 import { TemplateMinerConfig } from "./TemplateMinerConfig.js";
+import { LRUCache } from "./LRUCache.js";
+import type { PersistenceHandler } from "./persistence/PersistenceHandler.js";
 import {
   ChangeType,
   type AddLogResult,
   type MatchStrategy,
+  type ExtractedParameter,
 } from "./core/types.js";
 import type { LogCluster as ILogCluster } from "./core/LogCluster.js";
-
-/**
- * Snapshot reason types — internal, not exported.
- * Maps to Python TemplateMiner's snapshot trigger logic.
- */
-type SnapshotReasonPayload = string;
-
-/**
- * Persistence handler interface.
- *
- * Framework-agnostic: drain-ts defines the contract, users provide the
- * implementation (file, Redis, Kafka, S3, etc.).
- *
- * Built-in zero-dependency implementations:
- * - FilePersistence (node:fs)
- * - MemoryPersistence (in-memory Buffer)
- *
- * All methods accept Uint8Array (Web standard) rather than Buffer
- * (Node-specific) for cross-runtime compatibility.
- *
- * @public
- */
-export interface PersistenceHandler {
-  /**
-   * Persists the serialized state.
-   * @param state - UTF-8 encoded JSON snapshot.
-   * @returns void or Promise<void> for sync/async support.
-   */
-  saveState(state: Uint8Array): void | Promise<void>;
-
-  /**
-   * Loads previously persisted state.
-   * @returns The state bytes, or null if nothing is stored.
-   */
-  loadState(): Uint8Array | null | Promise<Uint8Array | null>;
-}
 
 // ============================================================
 // Helpers
@@ -51,6 +18,30 @@ export interface PersistenceHandler {
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
+
+/**
+ * Escapes special regex characters in a string.
+ * Equivalent to Python's `re.escape()`.
+ */
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Sanitizes a regex pattern for use inside a larger capture group.
+ *
+ * Python: Drain3's `_get_template_parameter_extraction_regex`
+ * handles this by:
+ * - Converting named groups `(?P<name>...)` to non-capturing groups `(?:...)`
+ * - Converting numeric backreferences `\1` to `(?:.+?)`
+ */
+function sanitizeRegexForCapture(pattern: string): string {
+  // Replace Python-style named groups: (?P<name>...) → (?:...)
+  let sanitized = pattern.replace(/\(\?P<[^>]*>/g, "(?:");
+  // Replace numeric backreferences \1, \2, etc. (exclude \0)
+  sanitized = sanitized.replace(/\\(?!0)\d{1,2}/g, "(?:.+?)");
+  return sanitized;
+}
 
 // ============================================================
 // TemplateMiner
@@ -62,8 +53,8 @@ const decoder = new TextDecoder();
  * Maps 1:1 to Python `TemplateMiner` class (drain3/template_miner.py).
  *
  * TemplateMiner integrates the Drain clustering engine with the masking
- * preprocessor and optional persistence. It is the single entry point
- * that users should instantiate.
+ * preprocessor, optional persistence, and parameter extraction. It is
+ * the single entry point that users should instantiate.
  *
  * Usage:
  * ```typescript
@@ -87,6 +78,12 @@ export class TemplateMiner {
 
   /** Optional persistence handler for state save/load. */
   private readonly _persistence: PersistenceHandler | null;
+
+  /** LRU cache for parameter extraction regexes: (template, exactMatching) → compiled RegExp. */
+  private readonly _extractionCache: LRUCache<string, RegExp>;
+
+  /** LRU cache for param-name-to-mask-name mappings. Keyed same as _extractionCache. */
+  private readonly _extractionMappingCache: LRUCache<string, Record<string, string>>;
 
   /** Timestamp (seconds) of the last snapshot save. Initialized to now to prevent immediate periodic save. */
   private _lastSnapshotTimestamp: number = Date.now() / 1000;
@@ -128,6 +125,11 @@ export class TemplateMiner {
       config.maskSuffix,
     );
 
+    // Initialize regex caches for parameter extraction
+    const cacheCapacity = config.parameterExtractionCacheCapacity;
+    this._extractionCache = new LRUCache(cacheCapacity);
+    this._extractionMappingCache = new LRUCache(cacheCapacity);
+
     // Restore state from persistence if available
     if (this._persistence) {
       this._loadState();
@@ -146,9 +148,6 @@ export class TemplateMiner {
    * configured and a snapshot trigger condition is met.
    *
    * Python: TemplateMiner.add_log_message(log_message) → dict
-   *
-   * @param logMessage - The raw log line to process.
-   * @returns Result with change type, cluster info, and template.
    */
   addLogMessage(logMessage: string): AddLogResult {
     // Phase 1: Mask
@@ -183,14 +182,7 @@ export class TemplateMiner {
    * Matches a log message against existing clusters (inference mode).
    *
    * Unlike `addLogMessage`, this does NOT create new clusters or modify
-   * templates. The message is masked first, then matched against the
-   * existing cluster set.
-   *
-   * Python: TemplateMiner.match(log_message, full_search_strategy) → LogCluster | None
-   *
-   * @param logMessage - The raw log line to classify.
-   * @param fullSearchStrategy - Search strategy ("never" | "fallback" | "always").
-   * @returns The matching LogCluster, or null if no match.
+   * templates.
    */
   match(
     logMessage: string,
@@ -201,15 +193,189 @@ export class TemplateMiner {
   }
 
   // ============================================================
-  // Persistence — maps to Python TemplateMiner.save_state/load_state
+  // extractParameters — maps to Python TemplateMiner.extract_parameters()
   // ============================================================
 
   /**
-   * Saves the current clustering state via the configured PersistenceHandler.
+   * Extracts variable parameters from a log message based on its template.
    *
-   * Python: TemplateMiner.save_state(snapshot_reason)
+   * Python: TemplateMiner.extract_parameters(template, log_line, exact_matching)
+   *
+   * Given a mined template like `"user <*:> logged in from <:IP:>"` and the
+   * original log message `"user alice logged in from 192.168.1.1"`, this
+   * method returns the extracted parameter values with their mask names:
+   *
+   * ```
+   * [
+   *   { value: "alice", maskName: "*" },
+   *   { value: "192.168.1.1", maskName: "IP" }
+   * ]
+   * ```
+   *
+   * @param logTemplate - The mined template string (from `addLogMessage` result).
+   * @param logMessage - The original (unmasked) log message.
+   * @param exactMatching - If true, uses the masking instruction regex patterns.
+   *                        If false, uses non-whitespace matching `.+?` for all params.
+   * @returns Ordered list of extracted parameters.
    */
-  private _saveState(snapshotReason: SnapshotReasonPayload): void {
+  extractParameters(
+    logTemplate: string,
+    logMessage: string,
+    exactMatching: boolean = true,
+  ): ExtractedParameter[] {
+    // Preprocess: replace extra delimiters with spaces
+    // Python: for delimiter in self.config.drain_extra_delimiters: log_message = re.sub(delimiter, " ", log_message)
+    let processedMessage = logMessage;
+    for (const delimiter of this.config.drainExtraDelimiters) {
+      // Use split+join instead of regex replace for plain string delimiters
+      processedMessage = processedMessage.split(delimiter).join(" ");
+    }
+
+    const cacheKey = `${logTemplate}\x00${String(exactMatching)}`;
+
+    let regex = this._extractionCache.get(cacheKey);
+    let paramNameToMaskName = this._extractionMappingCache.get(cacheKey);
+
+    if (!regex || !paramNameToMaskName) {
+      const built = this._buildExtractionRegex(logTemplate, exactMatching);
+      regex = built.regex;
+      paramNameToMaskName = built.paramNameToMaskName;
+      this._extractionCache.set(cacheKey, regex);
+      this._extractionMappingCache.set(cacheKey, paramNameToMaskName);
+    }
+
+    const match = regex.exec(processedMessage);
+    if (!match || !match.groups) return [];
+
+    const result: ExtractedParameter[] = [];
+    for (const paramName of Object.keys(paramNameToMaskName)) {
+      const value = match.groups[paramName];
+      if (value !== undefined) {
+        result.push({
+          value,
+          maskName: paramNameToMaskName[paramName]!,
+        });
+      }
+    }
+
+    return result;
+  }
+
+  // ============================================================
+  // Parameter extraction regex builder
+  // ============================================================
+
+  /**
+   * Builds a compiled RegExp and param-name-to-mask-name mapping for
+   * a given template.
+   *
+   * Python: TemplateMiner._get_template_parameter_extraction_regex()
+   *
+   * Algorithm:
+   * 1. Escape the template for regex.
+   * 2. For each known mask name, find `<MASK_NAME>` placeholders.
+   * 3. Replace each placeholder with a named capture group:
+   *    - Exact matching: use the MaskingInstruction's regex pattern(s).
+   *    - Inexact matching or `*`: use `.+?`.
+   * 4. Replace spaces with `\s+` to handle multiple spaces.
+   * 5. Anchor with `^...$`.
+   *
+   * @returns Compiled regex and mapping from param group name to mask name.
+   */
+  private _buildExtractionRegex(
+    template: string,
+    exactMatching: boolean,
+  ): {
+    regex: RegExp;
+    paramNameToMaskName: Record<string, string>;
+  } {
+    const paramNameToMaskName: Record<string, string> = {};
+    let paramCounter = 0;
+
+    const getNextParamName = (): string => {
+      const name = `p_${paramCounter}`;
+      paramCounter += 1;
+      return name;
+    };
+
+    const prefix = this.config.maskPrefix;
+    const suffix = this.config.maskSuffix;
+
+    // Build the regex by splitting the template into parts:
+    // literal text parts (escaped) and placeholder parts (replaced with capture groups).
+    //
+    // Strategy: tokenize the template at `<...>` boundaries, escape the literal
+    // segments, and replace each placeholder with a named capture group.
+    // This avoids the double-escaping problem that occurs when escaping the
+    // entire template first and then trying to find placeholders within it.
+    const parts: string[] = [];
+    let remaining = template;
+
+    while (remaining.length > 0) {
+      const openIdx = remaining.indexOf(prefix);
+      if (openIdx === -1) {
+        // No more placeholders — escape the rest
+        parts.push(escapeRegex(remaining));
+        break;
+      }
+
+      // Literal text before placeholder
+      if (openIdx > 0) {
+        parts.push(escapeRegex(remaining.slice(0, openIdx)));
+      }
+      remaining = remaining.slice(openIdx + prefix.length);
+
+      const closeIdx = remaining.indexOf(suffix);
+      if (closeIdx === -1) {
+        // No closing suffix — treat rest as literal
+        parts.push(escapeRegex(prefix + remaining));
+        remaining = "";
+        break;
+      }
+
+      const maskName = remaining.slice(0, closeIdx);
+      remaining = remaining.slice(closeIdx + suffix.length);
+
+      const paramGroupName = getNextParamName();
+
+      if (maskName === "*" || !exactMatching) {
+        // Universal wildcard or inexact mode: match any characters
+        paramNameToMaskName[paramGroupName] = maskName;
+        parts.push(`(?<${paramGroupName}>.+?)`);
+      } else if (this.masker.maskNames.includes(maskName)) {
+        // Known mask name with exact matching
+        paramNameToMaskName[paramGroupName] = maskName;
+        const instructions = this.masker.instructionsByMaskName(maskName);
+        if (instructions.length === 0) {
+          parts.push(`(?<${paramGroupName}>.+?)`);
+        } else {
+          const patterns = instructions.map((inst) =>
+            sanitizeRegexForCapture(inst.regexPattern),
+          );
+          parts.push(`(?<${paramGroupName}>${patterns.join("|")})`);
+        }
+      } else {
+        // Unknown mask name — treat as generic wildcard
+        paramNameToMaskName[paramGroupName] = maskName;
+        parts.push(`(?<${paramGroupName}>.+?)`);
+      }
+    }
+
+    // Join parts and replace spaces with \s+
+    let templateRegex = parts.join("");
+    templateRegex = templateRegex.replace(/ /g, "\\s+");
+
+    // Anchor to start and end
+    const finalRegex = new RegExp(`^${templateRegex}$`);
+
+    return { regex: finalRegex, paramNameToMaskName };
+  }
+
+  // ============================================================
+  // Persistence — maps to Python TemplateMiner.save_state/load_state
+  // ============================================================
+
+  private _saveState(snapshotReason: string): void {
     if (!this._persistence) return;
 
     const snapshot = {
@@ -225,11 +391,8 @@ export class TemplateMiner {
     const state = encoder.encode(json);
 
     const result = this._persistence.saveState(state);
-    // Handle async persistence handlers
     if (result instanceof Promise) {
       result.catch((err: unknown) => {
-        // Silently ignore persistence errors in sync flow —
-        // the clustering result is still valid.
         console.error(
           `[drain-ts] Failed to save state (${snapshotReason}):`,
           err,
@@ -238,15 +401,6 @@ export class TemplateMiner {
     }
   }
 
-  /**
-   * Loads state from the configured PersistenceHandler.
-   *
-   * Python: TemplateMiner.load_state()
-   *
-   * Restores clusters from a previously saved snapshot. The prefix tree
-   * is rebuilt from the loaded clusters. Configuration parameters are NOT
-   * restored (matching Drain3 v0.9.8 behavior).
-   */
   private _loadState(): void {
     if (!this._persistence) return;
 
@@ -260,15 +414,11 @@ export class TemplateMiner {
 
       if (!snapshot.clusters || !Array.isArray(snapshot.clusters)) return;
 
-      // Clear existing state
       this.drain.idToCluster.clear();
       let maxClusterId = 0;
 
       for (const c of snapshot.clusters) {
-        const cluster = new LogCluster(
-          c.log_template_tokens,
-          c.cluster_id,
-        );
+        const cluster = new LogCluster(c.log_template_tokens, c.cluster_id);
         cluster.size = c.size;
         this.drain.idToCluster.set(c.cluster_id, cluster);
         this.drain.addSeqToPrefixTree(this.drain.rootNode, cluster);
@@ -293,30 +443,17 @@ export class TemplateMiner {
   }
 
   // ============================================================
-  // Snapshot trigger logic — maps to Python get_snapshot_reason()
+  // Snapshot trigger logic
   // ============================================================
 
-  /**
-   * Determines whether a snapshot should be saved after processing a message.
-   *
-   * Python: TemplateMiner.get_snapshot_reason(change_type, cluster_id)
-   *
-   * Triggers:
-   * - Any non-"none" change type — always saves
-   * - Periodic save — if snapshot_interval_minutes have elapsed since last save
-   *
-   * @returns A reason string to pass to saveState, or null to skip.
-   */
   private _getSnapshotReason(
     changeType: typeof ChangeType[keyof typeof ChangeType],
-    _clusterId: number,
-  ): SnapshotReasonPayload | null {
-    // Python: if change_type != "none": return f"{change_type} ({cluster_id})"
+    clusterId: number,
+  ): string | null {
     if (changeType !== ChangeType.None) {
-      return `${changeType} (${_clusterId})`;
+      return `${changeType} (${clusterId})`;
     }
 
-    // Python: periodic save
     const now = Date.now() / 1000;
     const elapsed = now - this._lastSnapshotTimestamp;
     if (elapsed >= this.config.snapshotIntervalMinutes * 60) {

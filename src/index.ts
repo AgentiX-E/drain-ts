@@ -38,5 +38,12 @@ export {
 } from "./masker/index.js";
 
 // TemplateMiner (main user-facing API)
-export { TemplateMiner, type PersistenceHandler } from "./TemplateMiner.js";
+export { TemplateMiner } from "./TemplateMiner.js";
 export { TemplateMinerConfig } from "./TemplateMinerConfig.js";
+
+// Persistence (framework-agnostic state save/load)
+export {
+  type PersistenceHandler,
+  FilePersistence,
+  MemoryPersistence,
+} from "./persistence/index.js";
