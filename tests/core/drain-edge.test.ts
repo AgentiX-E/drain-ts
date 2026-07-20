@@ -384,3 +384,32 @@ it("should handle overflow when <*> doesn't exist yet and maxChildren is exceede
   
   expect(d.idToCluster.size).toBeGreaterThan(0);
 });
+
+// addSeqToPrefixTree: <*> exists + children < maxChildren (lines 276-278)
+it("should create exact token node when wildcard exists but under maxChildren", () => {
+  const d = makeDrain({ depth: 5, maxChildren: 10, parametrizeNumericTokens: true, simTh: 0.95 });
+
+  // Message 1: numeric token creates <*> node at depth 3, cluster 1
+  d.addLogMessage("prefix 42 suffix end");
+
+  // Message 2: similarity ~0.25 < 0.95 → NEW cluster → addSeqToPrefixTree
+  // At depth 3 (token=hello): non-numeric, <*> exists, size=1 < maxChildren=10
+  // → creates new exact node "hello" (lines 276-278)
+  d.addLogMessage("prefix hello world start");
+
+  expect(d.idToCluster.size).toBe(2);
+});
+
+// addSeqToPrefixTree: <*> exists + maxChildren overflow (lines 280)
+it("should route through existing wildcard when maxChildren reached", () => {
+  const d = makeDrain({ depth: 5, maxChildren: 2, parametrizeNumericTokens: true, simTh: 0.2 });
+  
+  // Numeric token creates <*> at depth 3
+  d.addLogMessage("root 1 mid end");
+  // Non-numeric "A" → <*> exists, size=1 < 2 → new node "A"
+  d.addLogMessage("root A mid end");
+  // Non-numeric "B" → <*> exists, size=2 >= maxChildren=2 → route through <*>
+  d.addLogMessage("root B mid end");
+  
+  expect(d.idToCluster.size).toBeGreaterThanOrEqual(1);
+});

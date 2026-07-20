@@ -274,3 +274,33 @@ describe("TemplateMinerConfig", () => {
     expect(Object.keys(source)).toEqual(["simTh"]);
   });
 });
+
+  it("should handle async persistence save failure gracefully", () => {
+    const handler: PersistenceHandler = {
+      saveState(_state: Uint8Array): Promise<void> {
+        return Promise.reject(new Error("Simulated persistence failure"));
+      },
+      loadState(): null {
+        return null;
+      },
+    };
+
+    const miner = new TemplateMiner({ persistenceHandler: handler });
+    // Should not throw — error is caught in Promise.catch
+    expect(() => miner.addLogMessage("test message")).not.toThrow();
+  });
+
+  it("should handle async persistence load failure gracefully", () => {
+    const handler: PersistenceHandler = {
+      saveState(_state: Uint8Array): void {
+        // sync, no error
+      },
+      loadState(): Promise<Uint8Array | null> {
+        return Promise.reject(new Error("Simulated load failure"));
+      },
+    };
+
+    // Should not throw during construction — error is caught in .catch()
+    const miner = new TemplateMiner({ persistenceHandler: handler });
+    expect(miner.drain.clustersCounter).toBe(0);
+  });

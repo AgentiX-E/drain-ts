@@ -8,10 +8,10 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],
-      exclude: ["src/index.ts", "src/masker/index.ts", "src/persistence/index.ts", "src/core/index.ts"],
+      exclude: ["src/index.ts", "src/masker/index.ts", "src/persistence/index.ts", "src/core/index.ts", "src/persistence/PersistenceHandler.ts"],
       thresholds: {
         statements: 95,
-        branches: 93,
+        branches: 95,
         functions: 95,
         lines: 95,
       },

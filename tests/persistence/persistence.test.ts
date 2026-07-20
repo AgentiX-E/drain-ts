@@ -146,3 +146,24 @@ describe("TemplateMiner persistence integration", () => {
     expect(miner.drain.clustersCounter).toBe(0);
   });
 });
+
+describe("FilePersistence error handling", () => {
+  it("should return null when path is a directory (EISDIR triggers catch)", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "drain-ts-dir-"));
+    try {
+      // Point loadState to a directory → fs.readFileSync throws EISDIR → caught → null
+      const handler = new FilePersistence(tmpDir);
+      const result = handler.loadState();
+      expect(result).toBeNull();
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("should throw on invalid save path (caller responsibility)", () => {
+    const handler = new FilePersistence("/dev/null/invalid/path/to/nowhere");
+    // On some systems /dev/null is a special file; trying to mkdirSync its parent fails
+    // This test verifies that the error propagates to the caller
+    expect(() => handler.saveState(new TextEncoder().encode("data"))).toThrow();
+  });
+});

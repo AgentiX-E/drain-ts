@@ -165,3 +165,10 @@ describe("printTree (debug output)", () => {
     expect(chunks.length).toBeGreaterThan(0);
   });
 });
+
+  it("should handle endSection with no name and no active sections", () => {
+    const p = new SimpleProfiler();
+    // Call endSection() without ever calling startSection()
+    // This triggers _getActiveSectionName() with empty startTimes map
+    expect(() => p.endSection()).not.toThrow();
+  });
