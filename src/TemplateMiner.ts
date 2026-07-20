@@ -7,11 +7,13 @@ import { SimpleProfiler, NullProfiler, type Profiler } from "./Profiler.js";
 import type { PersistenceHandler } from "./persistence/PersistenceHandler.js";
 import {
   ChangeType,
+  MatchStrategy,
   type AddLogResult,
-  type MatchStrategy,
+  type MatchStrategy as IMatchStrategy,
   type ExtractedParameter,
 } from "./core/types.js";
 import type { LogCluster as ILogCluster } from "./core/LogCluster.js";
+import * as zlib from "node:zlib";
 
 // ============================================================
 // Helpers
@@ -210,7 +212,7 @@ export class TemplateMiner {
    */
   match(
     logMessage: string,
-    fullSearchStrategy: MatchStrategy = "never" as MatchStrategy,
+    fullSearchStrategy: IMatchStrategy = MatchStrategy.Never,
   ): ILogCluster | null {
     const maskedContent = this.masker.mask(logMessage);
     return this.drain.match(maskedContent, fullSearchStrategy);
@@ -412,7 +414,15 @@ export class TemplateMiner {
     };
 
     const json = JSON.stringify(snapshot);
-    const state = encoder.encode(json);
+    let state = encoder.encode(json);
+
+    // Python: if config.snapshot_compress_state → zlib.compress + base64.b64encode
+    if (this.config.snapshotCompressState) {
+      const compressed = zlib.deflateSync(state);
+      state = encoder.encode(
+        Buffer.from(compressed).toString("base64"),
+      );
+    }
 
     const result = this._persistence.saveState(state);
     if (result instanceof Promise) {
@@ -433,7 +443,16 @@ export class TemplateMiner {
     const doLoad = (stateBuffer: Uint8Array | null): void => {
       if (!stateBuffer || stateBuffer.length === 0) return;
 
-      const json = decoder.decode(stateBuffer);
+      let json: string;
+
+      // Python: if compressed → zlib.decompress(base64.b64decode(state))
+      if (this.config.snapshotCompressState) {
+        const decoded = Buffer.from(decoder.decode(stateBuffer), "base64");
+        json = decoder.decode(zlib.inflateSync(decoded));
+      } else {
+        json = decoder.decode(stateBuffer);
+      }
+
       const snapshot = JSON.parse(json);
 
       if (!snapshot.clusters || !Array.isArray(snapshot.clusters)) return;

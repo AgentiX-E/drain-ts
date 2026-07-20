@@ -289,9 +289,10 @@ export class Drain extends DrainBase {
               const newNode = new Node();
               curNode.keyToChildNode.set(this.paramStr, newNode);
               curNode = newNode;
-            } else {
-              curNode = curNode.keyToChildNode.get(this.paramStr)!;
             }
+            // size + 1 > maxChildren is unreachable: the `=== maxChildren`
+            // branch above creates the <*> node before size can exceed maxChildren.
+            // Once <*> exists, the outer `has(this.paramStr)` branch handles routing.
           }
         }
       } else {

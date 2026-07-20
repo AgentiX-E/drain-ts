@@ -87,6 +87,9 @@ export abstract class DrainBase {
     if (depth < 3) {
       throw new Error(`depth must be at least 3, got ${depth}`);
     }
+    if (simTh < 0 || simTh > 1) {
+      throw new Error(`simTh must be between 0 and 1, got ${simTh}`);
+    }
 
     this.logClusterDepth = depth;
     this.maxNodeDepth = depth - 2;
@@ -185,6 +188,36 @@ export abstract class DrainBase {
       size += c.size;
     }
     return size;
+  }
+
+  /**
+   * Removes stale cluster IDs from all tree nodes.
+   *
+   * When clusters are evicted from the LRU cache (via maxClusters),
+   * their IDs may remain in Node.clusterIds arrays throughout the
+   * prefix tree. This method traverses the entire tree and removes
+   * any cluster ID that is no longer present in idToCluster.
+   *
+   * Call this periodically in long-running applications with
+   * maxClusters enabled, or after bulk LRU eviction.
+   *
+   * Complexity: O(n) where n is the number of nodes in the tree.
+   */
+  compactTree(): number {
+    let removed = 0;
+    const stack: Node[] = [this.rootNode];
+    while (stack.length > 0) {
+      const node = stack.pop()!;
+      const before = node.clusterIds.length;
+      node.clusterIds = node.clusterIds.filter((cid) =>
+        this.idToCluster.has(cid),
+      );
+      removed += before - node.clusterIds.length;
+      for (const child of node.keyToChildNode.values()) {
+        stack.push(child);
+      }
+    }
+    return removed;
   }
 
   // ============================================================

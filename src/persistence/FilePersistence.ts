@@ -49,7 +49,13 @@ export class FilePersistence implements PersistenceHandler {
       if (!fs.existsSync(this._filePath)) return null;
       const buffer = fs.readFileSync(this._filePath);
       return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
-    } catch {
+    } catch (err) {
+      // Log the error so callers can debug failed restores.
+      // Returning null means "no state" — the caller sees a fresh model.
+      console.error(
+        `[drain-ts] FilePersistence failed to load snapshot from ${this._filePath}:`,
+        err instanceof Error ? err.message : err,
+      );
       return null;
     }
   }

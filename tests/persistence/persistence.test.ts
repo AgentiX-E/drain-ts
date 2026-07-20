@@ -12,6 +12,7 @@ import * as os from "node:os";
 import { FilePersistence } from "../../src/persistence/FilePersistence.js";
 import { MemoryPersistence } from "../../src/persistence/MemoryPersistence.js";
 import { TemplateMiner } from "../../src/TemplateMiner.js";
+import { TemplateMinerConfig } from "../../src/TemplateMinerConfig.js";
 
 describe("FilePersistence", () => {
   let tmpDir: string;
@@ -165,5 +166,20 @@ describe("FilePersistence error handling", () => {
     // On some systems /dev/null is a special file; trying to mkdirSync its parent fails
     // This test verifies that the error propagates to the caller
     expect(() => handler.saveState(new TextEncoder().encode("data"))).toThrow();
+  });
+});
+
+describe("Snapshot compression", () => {
+  it("should compress and decompress snapshot state", () => {
+    const handler = new MemoryPersistence();
+    const config = TemplateMinerConfig.from({ snapshotCompressState: true });
+    
+    const minerA = new TemplateMiner({ config, persistenceHandler: handler });
+    minerA.addLogMessage("message one");
+    minerA.addLogMessage("message two");
+    
+    // Load into miner B — should decompress correctly
+    const minerB = new TemplateMiner({ config, persistenceHandler: handler });
+    expect(minerB.drain.clustersCounter).toBe(1);
   });
 });
