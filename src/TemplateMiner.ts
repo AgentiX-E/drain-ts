@@ -3,6 +3,7 @@ import { LogCluster } from "./core/LogCluster.js";
 import { LogMasker } from "./masker/LogMasker.js";
 import { TemplateMinerConfig } from "./TemplateMinerConfig.js";
 import { LRUCache } from "./LRUCache.js";
+import { SimpleProfiler, NullProfiler, type Profiler } from "./Profiler.js";
 import type { PersistenceHandler } from "./persistence/PersistenceHandler.js";
 import {
   ChangeType,
@@ -85,6 +86,9 @@ export class TemplateMiner {
   /** LRU cache for param-name-to-mask-name mappings. Keyed same as _extractionCache. */
   private readonly _extractionMappingCache: LRUCache<string, Record<string, string>>;
 
+  /** Profiler instance (NullProfiler by default, SimpleProfiler when enabled). */
+  readonly profiler: Profiler;
+
   /** Timestamp (seconds) of the last snapshot save. Initialized to now to prevent immediate periodic save. */
   private _lastSnapshotTimestamp: number = Date.now() / 1000;
 
@@ -130,6 +134,11 @@ export class TemplateMiner {
     this._extractionCache = new LRUCache(cacheCapacity);
     this._extractionMappingCache = new LRUCache(cacheCapacity);
 
+    // Initialize profiler
+    this.profiler = config.profilingEnabled
+      ? new SimpleProfiler()
+      : new NullProfiler();
+
     // Restore state from persistence if available
     if (this._persistence) {
       this._loadState();
@@ -150,13 +159,24 @@ export class TemplateMiner {
    * Python: TemplateMiner.add_log_message(log_message) → dict
    */
   addLogMessage(logMessage: string): AddLogResult {
+    // Python: self.profiler.start_section("total")
+    this.profiler.startSection("total");
+
     // Phase 1: Mask
+    // Python: self.profiler.start_section("mask")
+    this.profiler.startSection("mask");
     const maskedContent = this.masker.mask(logMessage);
+    this.profiler.endSection("mask");
 
     // Phase 2: Cluster
+    // Python: self.profiler.start_section("drain")
+    this.profiler.startSection("drain");
     const { cluster, changeType } = this.drain.addLogMessage(maskedContent);
+    this.profiler.endSection("drain");
 
     // Phase 3: Conditional persistence
+    // Python: self.profiler.start_section("save_state")
+    this.profiler.startSection("save_state");
     const snapshotReason = this._getSnapshotReason(
       changeType,
       cluster.clusterId,
@@ -164,6 +184,10 @@ export class TemplateMiner {
     if (snapshotReason !== null) {
       this._saveState(snapshotReason);
     }
+    this.profiler.endSection("save_state");
+
+    this.profiler.endSection("total");
+    this.profiler.report(this.config.profilingReportSec);
 
     return {
       changeType,

@@ -47,3 +47,10 @@ export {
   FilePersistence,
   MemoryPersistence,
 } from "./persistence/index.js";
+
+// Profiling
+export {
+  type Profiler,
+  NullProfiler,
+  SimpleProfiler,
+} from "./Profiler.js";
