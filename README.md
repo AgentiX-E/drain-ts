@@ -4,8 +4,12 @@
 > Ported with high fidelity from the official Python [Drain3](https://github.com/logpai/Drain3) v0.9.11.
 
 [![CI](https://github.com/AgentiX-E/drain-ts/actions/workflows/ci.yml/badge.svg)](https://github.com/AgentiX-E/drain-ts/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/@agentix-e/drain-ts)](https://www.npmjs.com/package/@agentix-e/drain-ts)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-TypeDoc-blue)](https://agentix-e.github.io/drain-ts/api/)
+[![Coverage](https://img.shields.io/badge/coverage-report-blue)](https://agentix-e.github.io/drain-ts/coverage/)
+[![npm](https://img.shields.io/npm/v/@agentix-e/drain-ts?color=blue)](https://www.npmjs.com/package/@agentix-e/drain-ts)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22-green)](https://nodejs.org/)
 
 **drain-ts** extracts structured templates from unstructured log messages in real time. It clusters
 similar log lines together using a fixed-depth prefix tree and incrementally learns the constant
@@ -40,6 +44,8 @@ console.log(r2.changeType);    // "none"
 - **Cross-runtime** — Node.js ≥18, Deno ≥2, Bun ≥1, browsers (ES2020+)
 
 ## Installation
+
+**Prerequisites**: Node.js ≥ 22, pnpm ≥ 10
 
 ```bash
 pnpm add @agentix-e/drain-ts

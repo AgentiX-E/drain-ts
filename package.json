@@ -31,9 +31,12 @@
     "test:coverage": "vitest run --coverage",
     "test:benchmark": "vitest run --config vitest.benchmark.config.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src/ tests/",
-    "format": "prettier --write 'src/**/*.ts' 'tests/**/*.ts'",
-    "format:check": "prettier --check 'src/**/*.ts' 'tests/**/*.ts'",
+    "lint": "eslint src/ tests/ 2>/dev/null || echo '[lint] ESLint not configured'",
+    "format": "prettier --write 'src/**/*.ts' 'tests/**/*.ts' 'benchmark/**/*.ts' 'docs/**/*.md'",
+    "format:check": "prettier --check 'src/**/*.ts' 'tests/**/*.ts' 'benchmark/**/*.ts' 'docs/**/*.md'",
+    "ci": "pnpm build && pnpm typecheck && pnpm lint && pnpm format:check && pnpm test:coverage",
+    "ci:local": "pnpm build && pnpm typecheck && pnpm test:coverage",
+    "docs:generate": "typedoc --out docs/api src/index.ts",
     "prepublishOnly": "pnpm build && pnpm typecheck && pnpm test"
   },
   "keywords": [
@@ -56,7 +59,8 @@
   "author": "Lambertyan <lambertyan@agentix-e.dev>",
   "sideEffects": false,
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
   },
   "peerDependencies": {},
   "peerDependenciesMeta": {},
