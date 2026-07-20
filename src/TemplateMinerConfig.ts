@@ -72,6 +72,19 @@ export class TemplateMinerConfig {
   /** Profiling report interval in seconds. Default: 60 */
   profilingReportSec: number = 60;
 
+  /**
+   * Optional callback invoked when persistence errors occur (async save/load failures).
+   * If omitted, errors are logged to `console.error`.
+   *
+   * @example
+   * ```typescript
+   * const config = TemplateMinerConfig.from({
+   *   onError: (context, err) => metrics.increment("drain.persistence.error", { context }),
+   * });
+   * ```
+   */
+  onError?: (context: string, error: Error) => void;
+
   // ===================== Factory =====================
 
   /**

@@ -95,10 +95,31 @@ export class TemplateMiner {
   private _lastSnapshotTimestamp: number = Date.now() / 1000;
 
   /**
+   * Promise that resolves when async state loading completes.
+   * `null` if no persistence handler or if loading was synchronous.
+   *
+   * When using an async PersistenceHandler, prefer `TemplateMiner.create()`
+   * over the constructor to ensure the model is fully loaded before use.
+   */
+  readonly initPromise: Promise<void> | null = null;
+
+  /**
    * Creates a TemplateMiner.
+   *
+   * **Important**: When using an async `PersistenceHandler` (e.g., Redis,
+   * Kafka), prefer the static `TemplateMiner.create()` factory method instead
+   * of the constructor. The constructor returns immediately before async
+   * state loading completes, which can cause a race condition if you call
+   * `addLogMessage()` right away.
    *
    * @param options.config - Configuration object (defaults used if omitted).
    * @param options.persistenceHandler - Optional persistence backend.
+   *
+   * @example
+   * ```typescript
+   * // For async persistence, use the factory:
+   * const miner = await TemplateMiner.create({ persistenceHandler: myRedisHandler });
+   * ```
    */
   constructor({
     config = new TemplateMinerConfig(),
@@ -141,10 +162,58 @@ export class TemplateMiner {
       ? new SimpleProfiler()
       : new NullProfiler();
 
-    // Restore state from persistence if available
+    // Restore state from persistence if available.
+    // If the handler is async, capture the loading promise so callers can await it.
     if (this._persistence) {
-      this._loadState();
+      const loadResult = this._persistence.loadState();
+      if (loadResult instanceof Promise) {
+        this.initPromise = loadResult.then(
+          (buf) => { this._doLoad(buf); },
+          (err: unknown) => {
+            const error = err instanceof Error ? err : new Error(String(err));
+            if (this.config.onError) {
+              this.config.onError("loadState", error);
+            } else {
+              console.error("[drain-ts] Failed to load state:", error.message);
+            }
+          },
+        );
+      } else {
+        this._doLoad(loadResult);
+      }
     }
+  }
+
+  /**
+   * Async factory — creates a fully-initialized TemplateMiner.
+   *
+   * Use this instead of the constructor when using an async
+   * `PersistenceHandler` (e.g., Redis, Kafka, S3). This method
+   * awaits state loading before returning, eliminating the race
+   * condition between construction and `addLogMessage()` calls.
+   *
+   * For sync `PersistenceHandler` (FilePersistence, MemoryPersistence),
+   * the constructor and `create()` behave identically.
+   *
+   * @example
+   * ```typescript
+   * const miner = await TemplateMiner.create({
+   *   config: TemplateMinerConfig.from({ simTh: 0.5 }),
+   *   persistenceHandler: new FilePersistence("/path/to/snapshot.json"),
+   * });
+   * // Model is fully loaded — safe to call addLogMessage() immediately.
+   * miner.addLogMessage("first message");
+   * ```
+   */
+  static async create(options: {
+    config?: TemplateMinerConfig;
+    persistenceHandler?: PersistenceHandler | null;
+  } = {}): Promise<TemplateMiner> {
+    const miner = new TemplateMiner(options);
+    if (miner.initPromise) {
+      await miner.initPromise;
+    }
+    return miner;
   }
 
   // ============================================================
@@ -427,62 +496,57 @@ export class TemplateMiner {
     const result = this._persistence.saveState(state);
     if (result instanceof Promise) {
       result.catch((err: unknown) => {
-        console.error(
-          `[drain-ts] Failed to save state (${snapshotReason}):`,
-          err,
-        );
+        const error = err instanceof Error ? err : new Error(String(err));
+        if (this.config.onError) {
+          this.config.onError(`saveState(${snapshotReason})`, error);
+        } else {
+          console.error(
+            `[drain-ts] Failed to save state (${snapshotReason}):`,
+            error.message,
+          );
+        }
       });
     }
   }
 
-  private _loadState(): void {
-    if (!this._persistence) return;
+  /**
+   * Synchronous state loading — called from constructor (sync handler)
+   * or from `create()` factory (after async handler resolves).
+   *
+   * Python: TemplateMiner.load_state()
+   */
+  private _doLoad(stateBuffer: Uint8Array | null): void {
+    if (!stateBuffer || stateBuffer.length === 0) return;
 
-    const loadResult = this._persistence.loadState();
+    let json: string;
 
-    const doLoad = (stateBuffer: Uint8Array | null): void => {
-      if (!stateBuffer || stateBuffer.length === 0) return;
-
-      let json: string;
-
-      // Python: if compressed → zlib.decompress(base64.b64decode(state))
-      if (this.config.snapshotCompressState) {
-        const decoded = Buffer.from(decoder.decode(stateBuffer), "base64");
-        json = decoder.decode(zlib.inflateSync(decoded));
-      } else {
-        json = decoder.decode(stateBuffer);
-      }
-
-      const snapshot = JSON.parse(json);
-
-      if (!snapshot.clusters || !Array.isArray(snapshot.clusters)) return;
-
-      this.drain.idToCluster.clear();
-      let maxClusterId = 0;
-
-      for (const c of snapshot.clusters) {
-        const cluster = new LogCluster(c.log_template_tokens, c.cluster_id);
-        cluster.size = c.size;
-        this.drain.idToCluster.set(c.cluster_id, cluster);
-        this.drain.addSeqToPrefixTree(this.drain.rootNode, cluster);
-
-        if (c.cluster_id > maxClusterId) {
-          maxClusterId = c.cluster_id;
-        }
-      }
-
-      this.drain.clustersCounter = maxClusterId;
-    };
-
-    if (loadResult instanceof Promise) {
-      loadResult
-        .then(doLoad)
-        .catch((err: unknown) => {
-          console.error("[drain-ts] Failed to load state:", err);
-        });
+    // Python: if compressed → zlib.decompress(base64.b64decode(state))
+    if (this.config.snapshotCompressState) {
+      const decoded = Buffer.from(decoder.decode(stateBuffer), "base64");
+      json = decoder.decode(zlib.inflateSync(decoded));
     } else {
-      doLoad(loadResult);
+      json = decoder.decode(stateBuffer);
     }
+
+    const snapshot = JSON.parse(json);
+
+    if (!snapshot.clusters || !Array.isArray(snapshot.clusters)) return;
+
+    this.drain.idToCluster.clear();
+    let maxClusterId = 0;
+
+    for (const c of snapshot.clusters) {
+      const cluster = new LogCluster(c.log_template_tokens, c.cluster_id);
+      cluster.size = c.size;
+      this.drain.idToCluster.set(c.cluster_id, cluster);
+      this.drain.addSeqToPrefixTree(this.drain.rootNode, cluster);
+
+      if (c.cluster_id > maxClusterId) {
+        maxClusterId = c.cluster_id;
+      }
+    }
+
+    this.drain.clustersCounter = maxClusterId;
   }
 
   // ============================================================

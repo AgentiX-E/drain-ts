@@ -290,7 +290,7 @@ describe("TemplateMinerConfig", () => {
     expect(() => miner.addLogMessage("test message")).not.toThrow();
   });
 
-  it("should handle async persistence load failure gracefully", () => {
+  it("should handle async persistence load failure gracefully", async () => {
     const handler: PersistenceHandler = {
       saveState(_state: Uint8Array): void {
         // sync, no error
@@ -300,7 +300,66 @@ describe("TemplateMinerConfig", () => {
       },
     };
 
-    // Should not throw during construction — error is caught in .catch()
-    const miner = new TemplateMiner({ persistenceHandler: handler });
+    // Use create() factory — it awaits initPromise which catches the rejection
+    const miner = await TemplateMiner.create({ persistenceHandler: handler });
+    // Should not throw — rejection was caught by initPromise handler
+    expect(miner.drain.clustersCounter).toBe(0);
+  });
+
+  it("should invoke onError callback on async persistence failure", async () => {
+    const errors: string[] = [];
+    const handler: PersistenceHandler = {
+      saveState(_state: Uint8Array): Promise<void> {
+        return Promise.reject(new Error("Save failed"));
+      },
+      loadState(): null {
+        return null;
+      },
+    };
+
+    const config = TemplateMinerConfig.from({
+      onError: (context, err) => {
+        errors.push(`${context}: ${err.message}`);
+      },
+    });
+    const miner = new TemplateMiner({ config, persistenceHandler: handler });
+    
+    // Trigger save which will fail asynchronously
+    miner.addLogMessage("test");
+    
+    // Wait for async rejection to be caught
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    
+    expect(errors.length).toBeGreaterThanOrEqual(1);
+    expect(errors.some((e) => e.includes("saveState"))).toBe(true);
+    expect(errors.some((e) => e.includes("Save failed"))).toBe(true);
+  });
+
+  it("should invoke onError callback on async load failure", async () => {
+    const errors: string[] = [];
+    const handler: PersistenceHandler = {
+      saveState(_state: Uint8Array): void {},
+      loadState(): Promise<Uint8Array | null> {
+        return Promise.reject(new Error("Load failed"));
+      },
+    };
+
+    const config = TemplateMinerConfig.from({
+      onError: (context, err) => {
+        errors.push(`${context}: ${err.message}`);
+      },
+    });
+
+    // Use factory to properly await initPromise
+    const miner = await TemplateMiner.create({
+      config,
+      persistenceHandler: handler,
+    });
+
+    // Should have caught the load error via onError
+    expect(errors.length).toBe(1);
+    expect(errors[0]).toContain("loadState");
+    expect(errors[0]).toContain("Load failed");
+    // Model should be empty since load failed
     expect(miner.drain.clustersCounter).toBe(0);
   });

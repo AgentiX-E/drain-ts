@@ -25,6 +25,11 @@ export class Node {
    * IDs of clusters rooted at this node (leaf nodes only).
    * For non-leaf nodes, this is empty.
    *
+   * This is a mutable array for performance — cluster IDs are frequently
+   * pushed during `addSeqToPrefixTree`. The array is replaced (not mutated
+   * in place) when filtering evicted IDs. Python Drain3 uses the same
+   * mutable list design.
+   *
    * Python: self.cluster_ids: Sequence[int] = []
    */
   clusterIds: number[] = [];

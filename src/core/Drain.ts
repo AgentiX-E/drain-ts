@@ -243,8 +243,9 @@ export class Drain extends DrainBase {
     let currentDepth = 1;
 
     for (let i = 0; i < tokenCount; i++) {
-      const token = cluster.logTemplateTokens[i];
-      if (token === undefined) continue;
+      // tokenCount === logTemplateTokens.length by construction;
+      // array access by bounded index is always defined.
+      const token = cluster.logTemplateTokens[i]!;
 
       // At maximum depth or last token → add to leaf node's clusterIds
       // Python: if current_depth >= self.max_node_depth or current_depth >= token_count

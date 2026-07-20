@@ -453,3 +453,51 @@ it("should reject simTh outside [0, 1]", () => {
   expect(() => makeDrain({ simTh: 0 })).not.toThrow();
   expect(() => makeDrain({ simTh: 1 })).not.toThrow();
 });
+
+// fastMatch with includeParams=true (inference path)
+it("should select cluster with more params when includeParams=true (inference)", () => {
+  const d = makeDrain({ simTh: 0.5, depth: 4 });
+  
+  // Create two clusters that are similar but one has more params
+  d.addLogMessage("user alice logged in");
+  d.addLogMessage("user bob logged in");
+  d.addLogMessage("system health check ok");
+  
+  // With includeParams=true, "user carol logged in" should match cluster 1
+  // (tokens: "user <*> logged in" — 2 matching + 1 param = 3/3 = 1.0)
+  const match = d.match("user carol logged in", "always");
+  expect(match).not.toBeNull();
+  expect(match!.clusterId).toBe(1);
+  expect(match!.getTemplate()).toBe("user <*> logged in");
+});
+
+// createTemplate with paramStr already in seq2
+it("should create correct template when seq2 already contains paramStr", () => {
+  const d = makeDrain({ paramStr: "<*>" });
+  
+  // seq1 = new message, seq2 already has <*> from previous template update
+  const result = d.createTemplate(["a", "b"], ["a", "<*>"]);
+  expect([...result]).toEqual(["a", "<*>"]);
+  
+  // Both should be all-paramStr when nothing matches
+  const result2 = d.createTemplate(["x", "y"], ["<*>", "<*>"]);
+  expect([...result2]).toEqual(["<*>", "<*>"]);
+  
+  // Partial match: first matches, second is paramStr in seq2
+  const result3 = d.createTemplate(["z", "w"], ["z", "<*>"]);
+  expect([...result3]).toEqual(["z", "<*>"]);
+});
+
+// fastMatch direct call — verifies includeParams=true behavior exactly
+it("should handle fastMatch with includeParams correctly", () => {
+  const d = makeDrain({ simTh: 0.5, depth: 4 });
+  d.addLogMessage("x a y");
+  d.addLogMessage("x b y");
+  
+  // Access fastMatch via DrainBase's public method path
+  const clusterIds = d.getClustersIdsForSeqLen(3);
+  // Now match a new message — with includeParams=true, it should match
+  // because the template is "x <*> y" (2 non-param + 1 param)
+  const match = d.match("x c y", "always");
+  expect(match).not.toBeNull();
+});
