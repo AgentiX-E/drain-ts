@@ -53,10 +53,10 @@ jobs:
 
       - name: Publish to npm (OIDC Trusted Publisher)
         run: |
-          # OIDC token exchange happens automatically via npm's built-in
-          # GitHub Actions OIDC support when registry is configured.
-          # pnpm delegates to npm for publishing, so we use npm directly.
-          npm publish --access public --provenance
+          # npm OIDC publishes via the ambient GITHUB_OIDC_TOKEN
+          # --provenance adds sigstore signing (requires first publish without it
+          # for brand-new packages in scoped registries)
+          npm publish --access public
         env:
           NPM_CONFIG_PROVENANCE: true
 
