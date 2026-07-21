@@ -501,3 +501,48 @@ it("should handle fastMatch with includeParams correctly", () => {
   const match = d.match("x c y", "always");
   expect(match).not.toBeNull();
 });
+
+// printTree: depth=1 numeric token count (triggers <L=N> branch)
+it("should print tree with numeric token count layer format", () => {
+  const d = makeDrain({ depth: 3 });
+  // Create clusters with numeric token counts (2, 3, 4 tokens)
+  d.addLogMessage("a b");
+  d.addLogMessage("x y z");
+  d.addLogMessage("p q r s");
+  
+  const chunks: string[] = [];
+  const mockStream = {
+    write(chunk: string): boolean { chunks.push(chunk); return true; },
+  } as NodeJS.WritableStream;
+  
+  d.printTree(mockStream, 5);
+  const output = chunks.join("");
+  
+  // Should contain numeric length markers like <L=2>, <L=3>, <L=4>
+  expect(output).toContain("L=2");
+  expect(output).toContain("L=3");
+  expect(output).toContain("L=4");
+});
+
+// printTree: with maxClusters option filtering
+it("should print tree with restricted cluster display", () => {
+  const d = makeDrain();
+  // Create 5 clusters at depth level 1 (single-token messages)
+  for (const t of ["a", "b", "c", "d", "e"]) {
+    d.addLogMessage(t);
+  }
+  
+  const chunks: string[] = [];
+  const mockStream = {
+    write(chunk: string): boolean { chunks.push(chunk); return true; },
+  } as NodeJS.WritableStream;
+  
+  // maxClusters=2: only show 2 clusters per node
+  d.printTree(mockStream, 2);
+  const output = chunks.join("");
+  
+  // Should only contain 2 cluster entries, not all 5
+  // First 2 should be present, 3rd likely not
+  expect(output).toContain("ID=1");
+  expect(output).toContain("ID=2");
+});
