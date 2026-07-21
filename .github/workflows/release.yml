@@ -51,10 +51,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
 
-      - name: Publish to npm (OIDC)
-        run: pnpm publish --access public --no-git-checks --provenance
+      - name: Publish to npm (OIDC Trusted Publisher)
+        run: |
+          # OIDC token exchange happens automatically via npm's built-in
+          # GitHub Actions OIDC support when registry is configured.
+          # pnpm delegates to npm for publishing, so we use npm directly.
+          npm publish --access public --provenance
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
 
   # ─── GitHub Release ───────────────────────────────────────────────
   github-release:

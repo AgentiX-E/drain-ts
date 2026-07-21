@@ -37,7 +37,7 @@
     "ci": "pnpm build && pnpm typecheck && pnpm lint && pnpm format:check && pnpm test:coverage",
     "ci:local": "pnpm build && pnpm typecheck && pnpm test:coverage",
     "docs:generate": "typedoc --out docs/api src/index.ts",
-    "prepublishOnly": "pnpm build && pnpm typecheck && pnpm test"
+    "prepublishOnly": "pnpm build"
   },
   "keywords": [
     "drain",
