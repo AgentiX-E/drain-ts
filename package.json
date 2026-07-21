@@ -1,6 +1,6 @@
 {
   "name": "@agentix-e/drain-ts",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A production-ready TypeScript/Node.js streaming log template miner — 1:1 port of the official Python Drain3 algorithm. Extracts structured templates from unstructured logs in real time using fixed-depth prefix tree clustering with zero runtime dependencies.",
   "type": "module",
   "main": "./dist/index.cjs",
