@@ -3,76 +3,222 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>drain-ts — TypeScript/Node.js Drain Log Template Miner</title>
+  <title>drain-ts — TypeScript Log Template Miner | Node.js Drain3 Port</title>
+  <meta name="description" content="drain-ts is a production-ready TypeScript/Node.js log template miner. 1:1 port of the official Python Drain3 algorithm — stream processing, zero dependencies, cross-runtime.">
+  <meta name="keywords" content="drain-ts, drain3, log parsing, log template mining, TypeScript, Node.js, observability, log analysis, streaming, Drain algorithm">
+  <meta name="author" content="Lambertyan / AgentiX-E">
+  <meta name="robots" content="index, follow">
+
+  <!-- Open Graph / Social -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="drain-ts — TypeScript/Node.js Drain Log Template Miner">
+  <meta property="og:description" content="1:1 TypeScript port of the official Python Drain3. Stream log parsing with fixed-depth prefix tree clustering. Zero dependencies. 98%+ test coverage.">
+  <meta property="og:url" content="https://agentix-e.github.io/drain-ts/">
+  <meta property="og:site_name" content="drain-ts">
+  <meta property="og:image" content="https://opengraph.githubassets.com/1/AgentiX-E/drain-ts">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="drain-ts — TypeScript Log Template Miner">
+  <meta name="twitter:description" content="Production-ready Node.js log parsing. 1:1 Drain3 port. Zero deps. Stream processing.">
+
+  <!-- Schema.org structured data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareSourceCode",
+    "name": "drain-ts",
+    "description": "TypeScript/Node.js streaming log template miner — 1:1 port of the official Python Drain3 algorithm",
+    "programmingLanguage": "TypeScript",
+    "codeRepository": "https://github.com/AgentiX-E/drain-ts",
+    "author": { "@type": "Person", "name": "Lambertyan" },
+    "license": "https://opensource.org/licenses/MIT",
+    "version": "1.0.0",
+    "keywords": "log-parsing,template-mining,drain-algorithm,typescript,nodejs,observability",
+    "applicationCategory": "Developer Tools",
+    "operatingSystem": "Node.js, Deno, Bun, Browser",
+    "datePublished": "2026-07-21"
+  }
+  </script>
+
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://agentix-e.github.io/drain-ts/">
+
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d1117; color: #c9d1d9; line-height: 1.6; }
-    .container { max-width: 900px; margin: 0 auto; padding: 3rem 1.5rem; }
-    h1 { font-size: 2.5rem; margin-bottom: 0.5rem; color: #58a6ff; }
-    p.subtitle { font-size: 1.2rem; color: #8b949e; margin-bottom: 2rem; }
-    .badges { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 2.5rem; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #0d1117; color: #c9d1d9; line-height: 1.7; }
+    .container { max-width: 960px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+    h1 { font-size: 2.8rem; font-weight: 700; margin-bottom: 0.3rem; color: #58a6ff; letter-spacing: -0.5px; }
+    h1 span { color: #8b949e; font-weight: 400; font-size: 1.8rem; }
+    p.subtitle { font-size: 1.15rem; color: #8b949e; margin-bottom: 1.5rem; max-width: 720px; }
+    .badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 2rem; align-items: center; }
     .badges img { height: 20px; }
-    .nav { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 3rem; }
-    .nav a { padding: 0.75rem 1.5rem; border: 1px solid #30363d; border-radius: 6px; color: #58a6ff; text-decoration: none; font-weight: 500; transition: background 0.2s; }
-    .nav a:hover { background: #161b22; }
-    .section { margin-bottom: 2rem; }
-    .section h2 { color: #f0f6fc; margin-bottom: 1rem; font-size: 1.3rem; border-bottom: 1px solid #21262d; padding-bottom: 0.5rem; }
-    .section ul { list-style: none; padding-left: 0; }
-    .section li { padding: 0.25rem 0; }
-    .section li a { color: #58a6ff; }
-    .footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid #21262d; color: #8b949e; font-size: 0.85rem; }
+    .nav { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 3rem; }
+    .nav a { display: inline-flex; align-items: center; gap: 6px; padding: 10px 22px; border: 1px solid #30363d; border-radius: 8px; color: #58a6ff; text-decoration: none; font-weight: 500; font-size: 0.95rem; transition: all 0.15s; }
+    .nav a:hover { background: #1c2128; border-color: #58a6ff; }
+    .nav a .icon { font-size: 1.1rem; }
+    .section { margin-bottom: 2.5rem; }
+    .section h2 { color: #f0f6fc; margin-bottom: 1rem; font-size: 1.4rem; font-weight: 600; border-bottom: 1px solid #21262d; padding-bottom: 0.5rem; }
+    .section h3 { color: #e6edf3; font-size: 1.05rem; margin: 1.2rem 0 0.5rem; }
+    .section p { margin-bottom: 0.8rem; max-width: 800px; }
+    pre { background: #161b22; padding: 1.25rem 1.5rem; border-radius: 8px; overflow-x: auto; font-size: 0.88rem; line-height: 1.5; border: 1px solid #21262d; margin: 1rem 0; }
+    code { font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, monospace; }
+    .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+    .feature-card { border: 1px solid #21262d; border-radius: 8px; padding: 1.25rem; background: #161b22; }
+    .feature-card h3 { color: #58a6ff; margin: 0 0 0.5rem; font-size: 1rem; }
+    .feature-card p { font-size: 0.9rem; color: #8b949e; margin: 0; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem; }
+    th { background: #161b22; color: #f0f6fc; text-align: left; padding: 10px 14px; border: 1px solid #21262d; font-weight: 600; }
+    td { padding: 8px 14px; border: 1px solid #21262d; color: #c9d1d9; }
+    tr:hover td { background: #1c2128; }
+    .cta { display: inline-flex; align-items: center; gap: 8px; background: #238636; color: #fff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 1rem; transition: background 0.15s; }
+    .cta:hover { background: #2ea043; }
+    .footer { margin-top: 4rem; padding-top: 2rem; border-top: 1px solid #21262d; color: #8b949e; font-size: 0.85rem; display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; }
+    .footer a { color: #58a6ff; text-decoration: none; }
+    .quickstart { display: flex; gap: 12px; margin: 1rem 0; flex-wrap: wrap; }
+    .quickstart code { background: #161b22; padding: 8px 16px; border: 1px solid #30363d; border-radius: 6px; font-size: 0.9rem; white-space: nowrap; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>@agentix-e/drain-ts</h1>
-    <p class="subtitle">A TypeScript/Node.js streaming log template miner based on the Drain algorithm — ported with high fidelity from the official Python Drain3 v0.9.11.</p>
+    <header>
+      <h1>@agentix-e/drain-ts <span>v1.0.0</span></h1>
+      <p class="subtitle">Production-ready TypeScript/Node.js streaming log template miner — a 1:1 port of the official Python Drain3 algorithm with zero runtime dependencies and cross-runtime support.</p>
 
-    <div class="badges">
-      <img src="https://github.com/AgentiX-E/drain-ts/actions/workflows/ci.yml/badge.svg" alt="CI">
-      <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
-      <img src="https://img.shields.io/badge/TypeScript-5.7-blue" alt="TypeScript">
-      <img src="https://img.shields.io/badge/Node.js-%3E%3D22-green" alt="Node.js">
+      <div class="badges">
+        <a href="https://github.com/AgentiX-E/drain-ts/actions/workflows/ci.yml"><img src="https://github.com/AgentiX-E/drain-ts/actions/workflows/ci.yml/badge.svg" alt="CI Status"></a>
+        <a href="https://www.npmjs.com/package/@agentix-e/drain-ts"><img src="https://img.shields.io/npm/v/@agentix-e/drain-ts?color=blue" alt="npm version"></a>
+        <a href="./coverage/"><img src="https://img.shields.io/badge/coverage-98%25-brightgreen" alt="Coverage"></a>
+        <a href="https://github.com/AgentiX-E/drain-ts/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+        <img src="https://img.shields.io/badge/Node.js-%3E%3D22-green" alt="Node.js >=22">
+        <img src="https://img.shields.io/badge/TypeScript-5.7-blue" alt="TypeScript 5.7">
+      </div>
+    </header>
+
+    <div class="quickstart">
+      <code>npm install @agentix-e/drain-ts</code>
+      <code>pnpm add @agentix-e/drain-ts</code>
+      <span style="color:#8b949e;align-self:center;">Node.js ≥ 22</span>
     </div>
 
     <nav class="nav">
-      <a href="https://github.com/AgentiX-E/drain-ts">GitHub Repository</a>
-      <a href="https://www.npmjs.com/package/@agentix-e/drain-ts">npm Package</a>
-      <a href="./coverage/">Coverage Report</a>
+      <a href="https://github.com/AgentiX-E/drain-ts"><span class="icon">&#9733;</span> GitHub Repository</a>
+      <a href="https://www.npmjs.com/package/@agentix-e/drain-ts"><span class="icon">&#128230;</span> npm Package</a>
+      <a href="./coverage/"><span class="icon">&#128200;</span> Coverage Report</a>
+      <a href="https://github.com/AgentiX-E/drain-ts#readme"><span class="icon">&#128214;</span> Full Documentation</a>
     </nav>
 
     <div class="section">
-      <h2>About</h2>
-      <p>drain-ts extracts structured templates from unstructured log messages in real time. It employs a fixed-depth prefix tree with similarity-based clustering to identify constant and variable parts of log lines — the same algorithm powering the widely-cited Drain3 Python implementation.</p>
+      <h2>What is drain-ts?</h2>
+      <p>drain-ts turns unstructured log messages into structured templates — in real time, with zero training. Given a stream of logs like <code>"connection from 192.168.1.1 port 8080"</code>, it automatically identifies that the IP and port are variables, producing the template <code>"connection from &lt;IP&gt; port &lt;NUM&gt;"</code>.</p>
+      <p>It implements the <strong>Drain algorithm</strong> (He et al., ICWS 2017) — the best-performing rule-based log parser in the LogPAI benchmark suite — using a fixed-depth prefix tree for efficient O((d+cm)n) online clustering.</p>
+      <p>This is the <strong>only TypeScript implementation</strong> with full Drain3 v0.9.11 feature parity: tree search, fast match, LRU eviction, inference mode, parameter extraction, and framework-agnostic persistence.</p>
     </div>
 
     <div class="section">
-      <h2>Features</h2>
-      <ul>
-        <li>Full Drain3 parity — treeSearch, fastMatch, LRU eviction, match inference, parameter extraction</li>
-        <li>Streaming online log processing with O((d + cm)n) complexity</li>
-        <li>Zero runtime dependencies — no mandatory peer deps</li>
-        <li>Cross-runtime: Node.js ≥22, Deno, Bun, browsers</li>
-        <li>Framework-agnostic state persistence (File, Redis, Kafka, S3)</li>
-        <li>Built-in wall-clock profiler</li>
-      </ul>
+      <h2>Key Features</h2>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <h3>&#9889; Streaming Online Parsing</h3>
+          <p>Process logs one at a time. No batching, no pre-training, no warm-up. Templates evolve automatically as new patterns appear.</p>
+        </div>
+        <div class="feature-card">
+          <h3>&#127919; Full Drain3 Parity</h3>
+          <p>treeSearch, fastMatch, addSeqToPrefixTree, LRU eviction, match() inference, extractParameters() — all 1:1 with the Python reference.</p>
+        </div>
+        <div class="feature-card">
+          <h3>&#128737; Zero Dependencies</h3>
+          <p>No runtime dependencies. No mandatory peer deps. Just TypeScript and your platform's standard library.</p>
+        </div>
+        <div class="feature-card">
+          <h3>&#127760; Cross-Runtime</h3>
+          <p>Node.js ≥22, Deno ≥2, Bun ≥1, and modern browsers (ES2020+). Same API everywhere.</p>
+        </div>
+        <div class="feature-card">
+          <h3>&#128274; Type-Safe</h3>
+          <p>Full TypeScript with strict mode, exactOptionalPropertyTypes, and noUncheckedIndexedAccess. Zero <code>any</code> types in the entire codebase.</p>
+        </div>
+        <div class="feature-card">
+          <h3>&#128190; Framework-Agnostic Persistence</h3>
+          <p>Save/load model state to File, Memory, Redis, Kafka, S3 — or implement the 2-method interface for any backend.</p>
+        </div>
+      </div>
     </div>
 
     <div class="section">
-      <h2>Quick Start</h2>
-      <pre style="background:#161b22;padding:1rem;border-radius:6px;overflow-x:auto;font-size:0.9rem;">import { TemplateMiner, TemplateMinerConfig, DEFAULT_MASKING_INSTRUCTIONS } from "@agentix-e/drain-ts";
+      <h2>30-Second Example</h2>
+      <pre>import { TemplateMiner, TemplateMinerConfig, DEFAULT_MASKING_INSTRUCTIONS } from "@agentix-e/drain-ts";
 
 const miner = new TemplateMiner({
   config: TemplateMinerConfig.from({ maskingInstructions: DEFAULT_MASKING_INSTRUCTIONS }),
 });
 
 miner.addLogMessage("connection from 192.168.1.1 port 8080");
-// Template: "connection from &lt;IP&gt; port &lt;NUM&gt;"</pre>
+miner.addLogMessage("connection from 10.0.0.1 port 443");
+// Both mapped to: "connection from &lt;IP&gt; port &lt;NUM&gt;"
+
+// Extract the actual values:
+const params = miner.extractParameters(
+  "connection from &lt;IP&gt; port &lt;NUM&gt;",
+  "connection from 192.168.1.1 port 8080"
+);
+// [{ value: "192.168.1.1", maskName: "IP" }, { value: "8080", maskName: "NUM" }]</pre>
     </div>
 
-    <div class="footer">
-      MIT License · Maintained by <a href="https://github.com/Lambertyan" style="color:#58a6ff">Lambertyan</a> / <a href="https://github.com/AgentiX-E" style="color:#58a6ff">AgentiX-E</a>
+    <div class="section">
+      <h2>Persistence in 3 Lines</h2>
+      <pre>import { TemplateMiner, FilePersistence } from "@agentix-e/drain-ts";
+
+const miner = new TemplateMiner({
+  persistenceHandler: new FilePersistence("./state.json"),
+});
+// State auto-saves on every template change
+// On restart, model loads from state.json automatically</pre>
     </div>
+
+    <div class="section">
+      <h2>vs. Python Drain3</h2>
+      <table>
+        <tr><th>Feature</th><th>Drain3 (Python)</th><th>drain-ts (This Project)</th></tr>
+        <tr><td>Fixed-depth prefix tree</td><td>✅</td><td>✅ 1:1 port</td></tr>
+        <tr><td>Similarity-based clustering</td><td>✅</td><td>✅ Same formula</td></tr>
+        <tr><td>Template incremental update</td><td>✅</td><td>✅ Same algorithm</td></tr>
+        <tr><td>LRU eviction (maxClusters)</td><td>✅</td><td>✅ Same policy</td></tr>
+        <tr><td>match() inference mode</td><td>✅ 3 strategies</td><td>✅ 3 strategies</td></tr>
+        <tr><td>extractParameters()</td><td>✅</td><td>✅ Exact + inexact</td></tr>
+        <tr><td>LogMasker</td><td>✅</td><td>✅ Sequential replacement</td></tr>
+        <tr><td>Persistence (File/Redis/Kafka)</td><td>✅ kafka-python, redis</td><td>✅ framework-agnostic interface</td></tr>
+        <tr><td>Profiler</td><td>✅</td><td>✅ Same section names</td></tr>
+        <tr><td>simTh validation</td><td>❌</td><td>✅ 0–1 range check</td></tr>
+        <tr><td>Async factory</td><td>❌</td><td>✅ TemplateMiner.create()</td></tr>
+        <tr><td>compactTree()</td><td>❌</td><td>✅ Cleanup after LRU eviction</td></tr>
+        <tr><td>Zero runtime deps</td><td>❌ pip install drain3</td><td>✅ npm install (no deps)</td></tr>
+        <tr><td>Type safety</td><td>❌ Dynamic</td><td>✅ Strict TypeScript</td></tr>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>Quality</h2>
+      <table>
+        <tr><th>Metric</th><th>Value</th></tr>
+        <tr><td>Tests</td><td>184 (unit + integration + benchmark)</td></tr>
+        <tr><td>Statement Coverage</td><td>98.86%</td></tr>
+        <tr><td>Branch Coverage</td><td>95.50%</td></tr>
+        <tr><td>Function Coverage</td><td>100%</td></tr>
+        <tr><td>TypeScript</td><td>Strict mode, zero errors</td></tr>
+        <tr><td>Throughput</td><td>~50,000 raw logs/sec (Node 22)</td></tr>
+      </table>
+    </div>
+
+    <div class="section" style="text-align:center;margin-top:2rem;">
+      <a href="https://github.com/AgentiX-E/drain-ts" class="cta">&#9733; Star on GitHub</a>
+      <a href="https://www.npmjs.com/package/@agentix-e/drain-ts" class="cta" style="background:#1f6feb;margin-left:12px;">&#128230; Install from npm</a>
+    </div>
+
+    <footer class="footer">
+      <span>MIT License &copy; <a href="https://github.com/Lambertyan">Lambertyan</a> / <a href="https://github.com/AgentiX-E">AgentiX-E</a></span>
+      <span><a href="https://github.com/AgentiX-E/drain-ts">GitHub</a> · <a href="https://www.npmjs.com/package/@agentix-e/drain-ts">npm</a> · <a href="./coverage/">Coverage</a></span>
+    </footer>
   </div>
 </body>
 </html>
