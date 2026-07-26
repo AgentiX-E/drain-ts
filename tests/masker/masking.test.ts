@@ -175,3 +175,14 @@ describe("AbstractMaskingInstruction", () => {
     expect(masker.mask("user @alice and @bob")).toBe("user <HANDLE> and <HANDLE>");
   });
 });
+
+describe("AbstractMaskingInstruction: validation", () => {
+  it("should throw on empty maskName", () => {
+    expect(() => {
+      class Bad extends AbstractMaskingInstruction {
+        mask() { return ""; }
+      }
+      new Bad("");
+    }).toThrow("maskName must be non-empty");
+  });
+});

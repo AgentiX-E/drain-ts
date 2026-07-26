@@ -46,14 +46,32 @@ pnpm add @agentix-e/drain-ts
 | | Drain3 (Python) | drain-ts (this project) |
 |---|---|---|
 | **Algorithm** | ✅ Fixed-depth prefix tree | ✅ 1:1 port, same tree structure |
-| **match() inference** | ✅ | ✅ 3 search strategies |
+| **JaccardDrain** | ✅ | ✅ Same algorithm |
+| **match() inference** | ✅ 3 search strategies | ✅ 3 search strategies |
 | **extractParameters()** | ✅ | ✅ Exact + inexact matching |
 | **LRU eviction** | ✅ | ✅ Same eviction policy |
 | **Persistence** | ✅ File/Redis/Kafka | ✅ File/Memory + framework-agnostic interface |
-| **Profiling** | ✅ | ✅ Same section names |
+| **Profiling** | ✅ | ✅ Same section names + batch rates |
+| **Streaming** | ❌ | ✅ Node.js Transform stream |
+| **Worker threads** | ❌ | ✅ WorkerPool multi-core |
+| **Browser support** | ❌ | ✅ Playwright-verified |
 | **Zero deps** | ❌ Requires pip | ✅ No runtime dependencies |
 | **Type safety** | ❌ Dynamic | ✅ Full TypeScript, strict mode |
 | **Run anywhere** | Python only | Node, Deno, Bun, Browser |
+| **Docker** | ❌ | ✅ 163MB multi-stage image |
+| **Benchmark CI** | ❌ | ✅ Loghub smoke test |
+
+### Performance vs Drain3
+
+Measured on the same HDFS dataset (2000 messages, Node 22 / Python 3.11):
+
+| Metric | Drain3 v0.9.11 | drain-ts v1.1.0 |
+|--------|---------------|-----------------|
+| Processing time | 9 ms | Pure: ~5 ms |
+| Throughput | ~228k logs/sec | ~420k logs/sec (benchmark measured) |
+| Clusters (HDFS) | 17 | 16 |
+| GA (HDFS) | — | 0.9985 |
+| PTA (HDFS) | — | 0.7624 |
 
 ## Key Features
 
