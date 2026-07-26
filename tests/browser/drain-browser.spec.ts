@@ -15,7 +15,7 @@ test.describe("drain-ts core algorithm in Chromium", () => {
     
     // Run tests via the exposed window API
     const results = await page.evaluate(() => {
-      const t = (window as any).__drainBrowserTests;
+      const t = (globalThis as any).__drainBrowserTests;
       return t ? t.runAll() : { error: "window.__drainBrowserTests not found" };
     });
 
