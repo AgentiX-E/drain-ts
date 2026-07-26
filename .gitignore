@@ -5,3 +5,5 @@ coverage/
 .DS_Store
 dist-browser/
 test-results/
+benchmark-report/
+coverage-report/
