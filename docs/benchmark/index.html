@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>drain-ts Benchmark Report — Loghub 2k</title>
+<style>
+body { font-family: -apple-system, system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+h1 { border-bottom: 2px solid #333; padding-bottom: 0.5rem; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+th, td { padding: 6px 10px; text-align: right; border-bottom: 1px solid #ddd; }
+th { background: #f5f5f5; font-weight: 600; }
+td:first-child, th:first-child { text-align: left; }
+.pass { color: #22863a; }
+.fail { color: #cb2431; }
+</style>
+</head>
+<body>
+<h1>drain-ts Benchmark Report</h1>
+<p>Validated against all 15 <a href="https://github.com/logpai/loghub">Loghub 2k</a> standard benchmark datasets with extended masking (9 presets).</p>
+
+<h2>Results</h2>
+<table>
+<thead>
+<tr><th>Dataset</th><th>Category</th><th>GA</th><th>FGA</th><th>PTA</th><th>FTA</th><th>Clusters</th></tr>
+</thead>
+<tbody>
+<tr><td>HDFS</td><td>Distributed Systems</td><td>0.9985</td><td>0.9781</td><td>0.7624</td><td>0.7394</td><td>16</td></tr>
+<tr><td>Hadoop</td><td>Distributed Systems</td><td>0.9990</td><td>0.9340</td><td>0.7965</td><td>0.8002</td><td>102</td></tr>
+<tr><td>Spark</td><td>Distributed Systems</td><td>1.0000</td><td>0.9565</td><td>0.8976</td><td>0.8897</td><td>33</td></tr>
+<tr><td>OpenStack</td><td>Distributed Systems</td><td>0.8790</td><td>0.8219</td><td>0.7599</td><td>0.7361</td><td>43</td></tr>
+<tr><td>Zookeeper</td><td>Distributed Systems</td><td>0.9985</td><td>0.9338</td><td>0.8883</td><td>0.9022</td><td>46</td></tr>
+<tr><td>BGL</td><td>Supercomputers</td><td>1.0000</td><td>0.9333</td><td>0.8308</td><td>0.8000</td><td>105</td></tr>
+<tr><td>HPC</td><td>Supercomputers</td><td>0.9980</td><td>0.9328</td><td>0.8554</td><td>0.8593</td><td>45</td></tr>
+<tr><td>Linux</td><td>Operating Systems</td><td>1.0000</td><td>0.9694</td><td>0.8545</td><td>0.8703</td><td>111</td></tr>
+<tr><td>Mac</td><td>Operating Systems</td><td>0.9375</td><td>0.9123</td><td>0.7937</td><td>0.8079</td><td>296</td></tr>
+<tr><td>Apache</td><td>Server Applications</td><td>1.0000</td><td>1.0000</td><td>0.9211</td><td>0.9028</td><td>6</td></tr>
+<tr><td>OpenSSH</td><td>Server Applications</td><td>1.0000</td><td>0.9200</td><td>0.8114</td><td>0.8218</td><td>23</td></tr>
+<tr><td>Windows</td><td>Operating Systems</td><td>0.9980</td><td>0.9352</td><td>0.8780</td><td>0.8895</td><td>49</td></tr>
+<tr><td>Android</td><td>Mobile Systems</td><td>0.9985</td><td>0.9322</td><td>0.7174</td><td>0.7816</td><td>148</td></tr>
+<tr><td>HealthApp</td><td>Mobile Systems</td><td>1.0000</td><td>0.9796</td><td>0.8794</td><td>0.8794</td><td>72</td></tr>
+<tr><td>Proxifier</td><td>Standalone Software</td><td>0.3660</td><td>0.7217</td><td>0.8478</td><td>0.8275</td><td>38</td></tr>
+</tbody>
+<tfoot>
+<tr><th>Average</th><th></th><th>0.945</th><th></th><th>0.833</th><th></th><th></th></tr>
+</tfoot>
+</table>
+
+<h3>Performance</h3>
+<table>
+<thead><tr><th>Dataset</th><th>Duration</th><th>Throughput</th></tr></thead>
+<tbody>
+<tr><td>HDFS</td><td>21ms</td><td>93,620 logs/sec</td></tr>
+<tr><td>HPC</td><td>7ms</td><td>268,017 logs/sec</td></tr>
+<tr><td>HealthApp</td><td>9ms</td><td>211,389 logs/sec</td></tr>
+<tr><td>Apache</td><td>11ms</td><td>188,588 logs/sec</td></tr>
+<tr><td><strong>Overall Range</strong></td><td><strong>5–31ms</strong></td><td><strong>71k–420k logs/sec</strong></td></tr>
+</tbody>
+</table>
+
+<p><em>Run with: <code>npx tsx benchmark/run.ts --all</code></em></p>
+<p><small>Last updated: <span id="date"></span></small></p>
+<script>document.getElementById('date').textContent = new Date().toISOString().split('T')[0];</script>
+</body>
+</html>

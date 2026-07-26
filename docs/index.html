@@ -82,16 +82,15 @@
 <body>
   <div class="container">
     <header>
-      <h1>@agentix-e/drain-ts <span>v1.0.0</span></h1>
+      <h1>@agentix-e/drain-ts</h1>
       <p class="subtitle">Production-ready TypeScript/Node.js streaming log template miner — a 1:1 port of the official Python Drain3 algorithm with zero runtime dependencies and cross-runtime support.</p>
 
       <div class="badges">
         <a href="https://github.com/AgentiX-E/drain-ts/actions/workflows/ci.yml"><img src="https://github.com/AgentiX-E/drain-ts/actions/workflows/ci.yml/badge.svg" alt="CI Status"></a>
         <a href="https://www.npmjs.com/package/@agentix-e/drain-ts"><img src="https://img.shields.io/npm/v/@agentix-e/drain-ts?color=blue" alt="npm version"></a>
-        <a href="./coverage/"><img src="https://img.shields.io/badge/coverage-98%25-brightgreen" alt="Coverage"></a>
+        <a href="./coverage/"><img src="https://img.shields.io/badge/coverage-report-blue" alt="Coverage Report"></a>
         <a href="https://github.com/AgentiX-E/drain-ts/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
         <img src="https://img.shields.io/badge/Node.js-%3E%3D22-green" alt="Node.js >=22">
-        <img src="https://img.shields.io/badge/TypeScript-5.7-blue" alt="TypeScript 5.7">
       </div>
     </header>
 
@@ -201,12 +200,11 @@ const miner = new TemplateMiner({
       <h2>Quality</h2>
       <table>
         <tr><th>Metric</th><th>Value</th></tr>
-        <tr><td>Tests</td><td>184 (unit + integration + benchmark)</td></tr>
-        <tr><td>Statement Coverage</td><td>98.86%</td></tr>
-        <tr><td>Branch Coverage</td><td>95.50%</td></tr>
-        <tr><td>Function Coverage</td><td>100%</td></tr>
+        <tr><td>Tests</td><td>332 (unit + integration + benchmark)</td></tr>
+        <tr><td>Coverage</td><td><a href="./coverage/">View full report →</a></td></tr>
+        <tr><td>Benchmark</td><td><a href="./benchmark/">Loghub 2k — 15 datasets →</a></td></tr>
         <tr><td>TypeScript</td><td>Strict mode, zero errors</td></tr>
-        <tr><td>Throughput</td><td>~50,000 raw logs/sec (Node 22)</td></tr>
+        <tr><td>Throughput</td><td>~420,000 logs/sec (Node 22)</td></tr>
       </table>
     </div>
 
