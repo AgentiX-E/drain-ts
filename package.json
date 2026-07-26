@@ -75,7 +75,7 @@
     "eslint": "^9.39.5",
     "prettier": "^3.9.6",
     "tsup": "^8.5.1",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "vite": "^8.1.5",
     "vitest": "^4.1.10"
   },
