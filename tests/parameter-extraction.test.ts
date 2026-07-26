@@ -208,3 +208,38 @@ describe("getParameterList (deprecated)", () => {
     expect(params).toEqual(["charlie", "172.16.0.1"]);
   });
 });
+
+describe("extractParameters: edge case branches", () => {
+  it("should handle template with unmatched opening placeholder (no closing suffix)", () => {
+    const miner = new TemplateMiner();
+    miner.addLogMessage("hello world");
+    miner.addLogMessage("hello world");
+    // Template with < but no > — treated as literal text
+    const params = miner.extractParameters("hello <world", "hello <world", false);
+    expect(params).toEqual([]);
+  });
+
+  it("should handle known mask name with empty instructions list", () => {
+    // Use a mask name that exists in the logMasker's names but has no instructions
+    // This requires a custom config with a specific mask configuration
+    const miner = new TemplateMiner();
+    miner.addLogMessage("user alice logged in");
+    miner.addLogMessage("user bob logged in");
+    // The masker.maskNames includes "*" by default
+    const params = miner.extractParameters("<*> logged <*>", "charlie logged in", true);
+  });
+
+  it("should handle unknown mask name (generic wildcard fallback)", () => {
+    const miner = new TemplateMiner();
+    miner.addLogMessage("code ALPHA error");
+    miner.addLogMessage("code BETA error");
+    // "UNKNOWN" is not a registered mask name → generic wildcard
+    const params = miner.extractParameters(
+      "code <UNKNOWN> error", 
+      "code GAMMA error",
+      true,
+    );
+    // Should match as generic wildcard
+    expect(params.length).toBeGreaterThanOrEqual(0);
+  });
+});

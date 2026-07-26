@@ -363,3 +363,32 @@ describe("TemplateMinerConfig", () => {
     // Model should be empty since load failed
     expect(miner.drain.clustersCounter).toBe(0);
   });
+
+describe("getParameterList (deprecated compat)", () => {
+  it("should extract parameter values via getParameterList", () => {
+    const miner = new TemplateMiner();
+    miner.addLogMessage("user alice logged in from 192.168.1.1");
+    miner.addLogMessage("user bob logged in from 10.0.0.1");
+    const values = miner.getParameterList(
+      "user <*> logged in from <IP>",
+      "user charlie logged in from 172.16.0.1",
+    );
+    expect(values).toEqual(["charlie", "172.16.0.1"]);
+  });
+});
+
+describe("TemplateMiner: async persistence success", () => {
+  it("should load state from async handler successfully (L174)", async () => {
+    const encoder = new TextEncoder();
+    const snapshot = encoder.encode(JSON.stringify({
+      clusters: [{ cluster_id: 1, log_template_tokens: ["hello", "<*>", "world"], size: 2 }]
+    }));
+    const handler = {
+      saveState(_s: Uint8Array): Promise<void> { return Promise.resolve(); },
+      loadState(): Promise<Uint8Array | null> { return Promise.resolve(snapshot); },
+    };
+    const miner = await TemplateMiner.create({ persistenceHandler: handler });
+    const result = miner.addLogMessage("hello test world");
+    expect(result.changeType).toBe("none");
+  });
+});

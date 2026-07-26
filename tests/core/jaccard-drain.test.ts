@@ -176,3 +176,20 @@ describe("JaccardDrain: edge cases", () => {
     expect(() => m.printTree()).not.toThrow();
   });
 });
+
+describe("JaccardDrain: match strategy coverage", () => {
+  it("should handle match with fallback strategy explicitly", () => {
+    const m = new JaccardDrain();
+    m.addLogMessage("check pass; user unknown"); m.addLogMessage("check pass; user Lisa");
+    m.addLogMessage("check pass; user Lisa");
+    const c = m.match("check pass; user Boris", MatchStrategy.Fallback);
+    expect(c).not.toBeNull();
+  });
+
+  it("should handle match with always strategy explicitly", () => {
+    const m = new JaccardDrain();
+    m.addLogMessage("check pass; user unknown"); m.addLogMessage("check pass; user Lisa");
+    const c = m.match("check pass; user Boris", MatchStrategy.Always);
+    expect(c).not.toBeNull();
+  });
+});
