@@ -19,3 +19,15 @@ export {
   type DrainSnapshotCluster,
   type ExtractedParameter,
 } from "./types.js";
+export {
+  type ParameterizationResult,
+  type TemplatePatternStrategy,
+  TemplatePatternStrategyChain,
+  ExactMatchStrategy,
+  FullTokenParameterizationStrategy,
+  AffixPreservingStrategy,
+  RegexParameterizationStrategy,
+  createDefaultStrategyChain,
+  createExtendedStrategyChain,
+  createCustomStrategyChain,
+} from "./TemplatePatternStrategy.js";

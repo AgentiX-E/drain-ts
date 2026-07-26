@@ -1,5 +1,14 @@
 import type { AbstractMaskingInstruction } from "./masker/MaskingInstruction.js";
 import { MaskingInstruction as MaskingInstructionClass } from "./masker/MaskingInstruction.js";
+import type { TemplatePatternStrategy } from "./core/TemplatePatternStrategy.js";
+import {
+  AffixPreservingStrategy,
+  ExactMatchStrategy,
+  FullTokenParameterizationStrategy,
+  RegexParameterizationStrategy,
+  TemplatePatternStrategyChain,
+} from "./core/TemplatePatternStrategy.js";
+import type { TokenNormalizer } from "./core/TokenNormalizer.js";
 
 /**
  * Configuration object for TemplateMiner.
@@ -52,6 +61,106 @@ export class TemplateMinerConfig {
   /** Whether tokens containing digits are treated as parameters. Default: true */
   parametrizeNumericTokens: boolean = true;
 
+  // ===================== Template Pattern Strategies =====================
+
+  /**
+   * Enable affix-preserving parameterization (e.g., "bytes<*>sent").
+   *
+   * When true, tokens with common prefixes/suffixes are parameterized
+   * in the middle rather than replaced entirely.
+   *
+   * Default: false (Drain3-compatible behavior)
+   */
+  enableAffixPreserving: boolean = false;
+
+  /**
+   * Minimum prefix/suffix length to trigger affix-preserving parameterization.
+   *
+   * Only used when enableAffixPreserving is true.
+   * Default: 2
+   */
+  minAffixLength: number = 2;
+
+  /**
+   * Custom regex patterns for parameterization.
+   *
+   * Each pattern defines a regex and its corresponding template.
+   * Use ${paramStr} as placeholder in templates.
+   *
+   * Example:
+   * ```typescript
+   * customRegexPatterns: [
+   *   { regex: /^(\d{4})-(\d{2})-(\d{2})$/, template: "${paramStr}-${paramStr}-${paramStr}" }
+   * ]
+   * ```
+   */
+  customRegexPatterns: ReadonlyArray<{
+    readonly regex: RegExp;
+    readonly template: string;
+    readonly confidence?: number;
+  }> = [];
+
+  /**
+   * Advanced: Custom template pattern strategies.
+   *
+   * If provided, overrides the default strategy chain construction.
+   * Use this for full control over template generation behavior.
+   *
+   * @see TemplatePatternStrategy
+   */
+  templatePatternStrategies?: readonly TemplatePatternStrategy[];
+
+  // ===================== Token Normalization =====================
+
+  /**
+   * Pre-clustering token normalizers.
+   *
+   * Applied BEFORE Drain clustering to normalize token sequences.
+   * This addresses tokenization mismatches between parser output
+   * and ground truth expectations (e.g., variable token counts,
+   * compound token structures like "bytes<*>sent").
+   *
+   * Built-in normalizers:
+   * - AdjacentConstantFusion: auto-detects and fuses constant adjacent tokens
+   *
+   * Default: [] (no normalization — Drain3-compatible behavior)
+   *
+   * @see TokenNormalizer
+   * @see AdjacentConstantFusion
+   */
+  tokenNormalizers: readonly TokenNormalizer[] = [];
+
+  /**
+   * Whether to enable AdjacentConstantFusion auto-detection.
+   *
+   * Convenience flag. When true, automatically adds an
+   * AdjacentConstantFusion normalizer to the pipeline.
+   *
+   * Default: false
+   */
+  enableAdjacentFusion: boolean = false;
+
+  /**
+   * Minimum token length for AdjacentConstantFusion content word detection.
+   *
+   * Default: 2
+   */
+  minFusionTokenLength: number = 2;
+
+  /**
+   * Regex collapse patterns for pre-fusion token normalization.
+   *
+   * Applied BEFORE AdjacentConstantFusion. Each pattern matches in the
+   * space-joined token string and replaces matches with the given string.
+   * Use "" to remove matches.
+   *
+   * Default: [] (no collapse)
+   */
+  regexCollapsePatterns: ReadonlyArray<{
+    readonly regex: RegExp;
+    readonly replacement: string;
+  }> = [];
+
   // ===================== [MASKING] section =====================
 
   /** Masking instruction list. Empty by default — users opt in. */
@@ -94,6 +203,29 @@ export class TemplateMinerConfig {
    * ```
    */
   onError?: (context: string, error: Error) => void;
+
+  // ===================== Preprocessing =====================
+
+  /**
+   * Optional preprocessor function applied to every log message BEFORE
+   * masking and Drain clustering.
+   *
+   * Use this for dataset-specific normalization: strip timestamps,
+   * normalize paths, handle embedded punctuation, etc.
+   *
+   * The preprocessor receives the raw log message and MUST return
+   * the (possibly modified) log message. If omitted, the message
+   * is passed through unchanged.
+   *
+   * @example
+   * ```typescript
+   * // Fix Proxifier-style embedded commas in log content
+   * const config = TemplateMinerConfig.from({
+   *   preprocessor: (msg) => msg.replace(/,\s+/g, " "),
+   * });
+   * ```
+   */
+  preprocessor?: (content: string) => string;
 
   // ===================== Factory =====================
 
@@ -162,6 +294,14 @@ export class TemplateMinerConfig {
         drain["parametrize_numeric_tokens"] === "True" ||
         drain["parametrize_numeric_tokens"] === "true";
     }
+    if (drain["enable_affix_preserving"] !== undefined) {
+      config.enableAffixPreserving =
+        drain["enable_affix_preserving"] === "True" ||
+        drain["enable_affix_preserving"] === "true";
+    }
+    if (drain["min_affix_length"] !== undefined) {
+      config.minAffixLength = Number(drain["min_affix_length"]);
+    }
 
     // [MASKING]
     const masking = sections["MASKING"] ?? sections["masking"] ?? {};
@@ -200,6 +340,49 @@ export class TemplateMinerConfig {
     }
 
     return config;
+  }
+
+  // ===================== Strategy Chain Builder =====================
+
+  /**
+   * Builds the template pattern strategy chain based on configuration.
+   *
+   * Priority order:
+   * 1. Custom strategies (if provided) — use as-is
+   * 2. Built from options: Exact → [Regex] → [AffixPreserving] → FullToken
+   *
+   * @returns Configured strategy chain
+   */
+  buildStrategyChain(): TemplatePatternStrategyChain {
+    // If custom strategies provided, use them directly
+    if (this.templatePatternStrategies) {
+      return new TemplatePatternStrategyChain().registerAll(
+        this.templatePatternStrategies,
+      );
+    }
+
+    // Build from configuration options
+    const chain = new TemplatePatternStrategyChain();
+
+    // Always register exact match (highest priority)
+    chain.register(new ExactMatchStrategy());
+
+    // Register regex patterns if provided
+    if (this.customRegexPatterns.length > 0) {
+      chain.register(
+        new RegexParameterizationStrategy(this.customRegexPatterns),
+      );
+    }
+
+    // Register affix-preserving if enabled
+    if (this.enableAffixPreserving) {
+      chain.register(new AffixPreservingStrategy(this.minAffixLength));
+    }
+
+    // Always register full-token fallback (lowest priority)
+    chain.register(new FullTokenParameterizationStrategy());
+
+    return chain;
   }
 }
 

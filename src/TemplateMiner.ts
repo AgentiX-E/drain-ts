@@ -16,6 +16,11 @@ import {
   type ExtractedParameter,
 } from "./core/types.js";
 import type { LogCluster as ILogCluster } from "./core/LogCluster.js";
+import {
+  AdjacentConstantFusion,
+  RegexCollapseNormalizer,
+  TokenNormalizerPipeline,
+} from "./core/TokenNormalizer.js";
 import * as zlib from "node:zlib";
 
 // ============================================================
@@ -85,6 +90,9 @@ export class TemplateMiner {
   /** Optional persistence handler for state save/load. */
   private readonly _persistence: PersistenceHandler | null;
 
+  /** Pre-clustering token normalization pipeline. */
+  private readonly _normalizerPipeline: TokenNormalizerPipeline;
+
   /** LRU cache for parameter extraction regexes: (template, exactMatching) → compiled RegExp. */
   private readonly _extractionCache: LRUCache<string, RegExp>;
 
@@ -147,6 +155,13 @@ export class TemplateMiner {
       extraDelimiters: config.drainExtraDelimiters,
       paramStr,
       parametrizeNumericTokens: config.parametrizeNumericTokens,
+      // Pass strategy chain configuration (conditionally for exactOptionalPropertyTypes)
+      ...(config.templatePatternStrategies !== undefined
+        ? { templatePatternStrategies: config.templatePatternStrategies }
+        : {}),
+      enableAffixPreserving: config.enableAffixPreserving,
+      minAffixLength: config.minAffixLength,
+      customRegexPatterns: config.customRegexPatterns,
     });
 
     // Create the masker with the configured instructions
@@ -155,6 +170,25 @@ export class TemplateMiner {
       config.maskPrefix,
       config.maskSuffix,
     );
+
+    // Build the token normalizer pipeline
+    this._normalizerPipeline = new TokenNormalizerPipeline();
+    // Phase 1: Regex collapse (optional — runs first to simplify token structure)
+    if (config.regexCollapsePatterns.length > 0) {
+      this._normalizerPipeline.register(
+        new RegexCollapseNormalizer(config.regexCollapsePatterns),
+      );
+    }
+    // Phase 2: Adjacent constant fusion (auto-detects and fuses constant pairs)
+    if (config.enableAdjacentFusion) {
+      this._normalizerPipeline.register(
+        new AdjacentConstantFusion(config.minFusionTokenLength),
+      );
+    }
+    // Phase 3: User-defined normalizers (runs last)
+    for (const normalizer of config.tokenNormalizers) {
+      this._normalizerPipeline.register(normalizer);
+    }
 
     // Initialize regex caches for parameter extraction
     const cacheCapacity = config.parameterExtractionCacheCapacity;
@@ -221,32 +255,95 @@ export class TemplateMiner {
   }
 
   // ============================================================
+  // learnTokens — batch learning for token normalizers
+  // ============================================================
+
+  /**
+   * Learns token patterns from a batch of raw log messages.
+   *
+   * Must be called BEFORE processing any messages when using
+   * normalizers that require a learning phase (e.g., AdjacentConstantFusion).
+   *
+   * This method tokenizes all messages, runs the normalizer's learn phase,
+   * and resets the Drain engine. Messages are NOT added to clusters.
+   *
+   * Call this once, then call addLogMessage() for each message.
+   *
+   * @param messages - Raw log messages to learn from
+   *
+   * @example
+   * ```typescript
+   * const miner = new TemplateMiner({
+   *   config: TemplateMinerConfig.from({
+   *     enableAdjacentFusion: true,
+   *   }),
+   * });
+   * miner.learnTokens(allLogMessages);
+   * for (const msg of allLogMessages) {
+   *   miner.addLogMessage(msg); // tokens are now normalized
+   * }
+   * ```
+   */
+  learnTokens(messages: readonly string[]): void {
+    if (this._normalizerPipeline.isEmpty) return;
+
+    // Tokenize all messages (with preprocessor + extra delimiters + masking)
+    const tokenized: string[][] = [];
+    for (const msg of messages) {
+      const preprocessed = this.config.preprocessor
+        ? this.config.preprocessor(msg)
+        : msg;
+      const masked = this.masker.mask(preprocessed);
+      const tokens = this.drain.getContentAsTokens(masked);
+      tokenized.push(tokens);
+    }
+
+    // Let normalizers learn from the batch
+    this._normalizerPipeline.learn(tokenized);
+  }
+
+  // ============================================================
   // addLogMessage — maps to Python TemplateMiner.add_log_message()
   // ============================================================
 
   /**
    * Processes a log message (training mode).
    *
-   * The message is first masked, then passed to the Drain engine for
-   * clustering. State may be persisted if a PersistenceHandler is
-   * configured and a snapshot trigger condition is met.
+   * The message is first preprocessed and masked, then token-normalized,
+   * then passed to the Drain engine for clustering.
+   *
+   * State may be persisted if a PersistenceHandler is configured and
+   * a snapshot trigger condition is met.
    *
    * Python: TemplateMiner.add_log_message(log_message) → dict
    */
   addLogMessage(logMessage: string): AddLogResult {
-    // Python: self.profiler.start_section("total")
+    // Phase 0: Preprocess (dataset-specific normalization)
+    const preprocessed = this.config.preprocessor
+      ? this.config.preprocessor(logMessage)
+      : logMessage;
+
     this.profiler.startSection("total");
 
     // Phase 1: Mask
-    // Python: self.profiler.start_section("mask")
     this.profiler.startSection("mask");
-    const maskedContent = this.masker.mask(logMessage);
+    const maskedContent = this.masker.mask(preprocessed);
     this.profiler.endSection("mask");
 
+    // Phase 1.5: Token normalization (pre-clustering)
+    let clusterInput = maskedContent;
+    if (!this._normalizerPipeline.isEmpty) {
+      const tokens = this.drain.getContentAsTokens(maskedContent);
+      const normalized = this._normalizerPipeline.normalize(
+        tokens,
+        `${this.config.maskPrefix}*${this.config.maskSuffix}`,
+      );
+      clusterInput = normalized.tokens.join(" ");
+    }
+
     // Phase 2: Cluster
-    // Python: self.profiler.start_section("drain")
     this.profiler.startSection("drain");
-    const { cluster, changeType } = this.drain.addLogMessage(maskedContent);
+    const { cluster, changeType } = this.drain.addLogMessage(clusterInput);
     this.profiler.endSection("drain");
 
     // Phase 3: Conditional persistence
@@ -287,8 +384,23 @@ export class TemplateMiner {
     logMessage: string,
     fullSearchStrategy: IMatchStrategy = MatchStrategy.Never,
   ): ILogCluster | null {
-    const maskedContent = this.masker.mask(logMessage);
-    return this.drain.match(maskedContent, fullSearchStrategy);
+    const preprocessed = this.config.preprocessor
+      ? this.config.preprocessor(logMessage)
+      : logMessage;
+    const maskedContent = this.masker.mask(preprocessed);
+
+    // Apply token normalization
+    let matchInput = maskedContent;
+    if (!this._normalizerPipeline.isEmpty) {
+      const tokens = this.drain.getContentAsTokens(maskedContent);
+      const normalized = this._normalizerPipeline.normalize(
+        tokens,
+        `${this.config.maskPrefix}*${this.config.maskSuffix}`,
+      );
+      matchInput = normalized.tokens.join(" ");
+    }
+
+    return this.drain.match(matchInput, fullSearchStrategy);
   }
 
   // ============================================================
@@ -322,9 +434,13 @@ export class TemplateMiner {
     logMessage: string,
     exactMatching: boolean = true,
   ): ExtractedParameter[] {
+    // Phase 0: Preprocess
+    const preprocessed = this.config.preprocessor
+      ? this.config.preprocessor(logMessage)
+      : logMessage;
     // Preprocess: replace extra delimiters with spaces
     // Python: for delimiter in self.config.drain_extra_delimiters: log_message = re.sub(delimiter, " ", log_message)
-    let processedMessage = logMessage;
+    let processedMessage = preprocessed;
     for (const delimiter of this.config.drainExtraDelimiters) {
       // Use split+join instead of regex replace for plain string delimiters
       processedMessage = processedMessage.split(delimiter).join(" ");

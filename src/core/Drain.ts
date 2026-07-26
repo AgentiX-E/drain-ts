@@ -289,9 +289,15 @@ export class Drain extends DrainBase {
    *
    * Python: Drain.create_template(seq1, seq2)
    *
-   * Comparison strategy:
+   * Comparison strategy (extended):
    * - seq1[ i ] == seq2[ i ] → keep the token (it's a constant)
-   * - seq1[ i ] != seq2[ i ] → replace with paramStr (it's a variable)
+   * - seq1[ i ] != seq2[ i ] → use strategy chain to parameterize
+   *
+   * The strategy chain enables advanced parameterization patterns:
+   * - Exact match: keep token as-is
+   * - Affix-preserving: "bytes0sent" + "bytes403sent" → "bytes<*>sent"
+   * - Regex-based: custom patterns for structured formats
+   * - Full token: replace with paramStr (Drain3 default)
    *
    * This is how Drain gradually generalizes templates — each time a new
    * message matches a cluster, positions that differ are replaced with
@@ -313,7 +319,21 @@ export class Drain extends DrainBase {
 
     const result: string[] = [];
     for (let i = 0; i < seq1.length; i++) {
-      result.push(seq1[i] === seq2[i] ? seq2[i]! : this.paramStr);
+      const token1 = seq1[i]!;
+      const token2 = seq2[i]!;
+
+      if (token1 === token2) {
+        // Exact match — keep the token
+        result.push(token2);
+      } else {
+        // Use strategy chain for parameterization
+        const paramResult = this.strategyChain.parameterize(
+          token1,
+          token2,
+          this.paramStr,
+        );
+        result.push(paramResult.templateToken);
+      }
     }
     return Object.freeze(result);
   }

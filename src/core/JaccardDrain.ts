@@ -293,9 +293,12 @@ export class JaccardDrain extends DrainBase {
    *
    * Python: JaccardDrain.create_template(seq1, seq2)
    *
-   * Same-length sequences: position-wise comparison (like standard Drain).
+   * Same-length sequences: position-wise comparison with strategy chain.
    * Different-length sequences: keep tokens in the intersection set,
    * replace all others with paramStr. Uses the LONGER sequence as base.
+   *
+   * The strategy chain enables advanced parameterization patterns
+   * for same-length sequences (affix-preserving, regex-based, etc.)
    *
    * seq1 = log message tokens, seq2 = template tokens.
    */
@@ -306,10 +309,22 @@ export class JaccardDrain extends DrainBase {
     const interSet = new Set([...seq1].filter((x) => seq2.includes(x)));
 
     if (seq1.length === seq2.length) {
-      // Same length: position-wise param replacement
+      // Same length: use strategy chain for parameterization
       const result: string[] = [];
       for (let i = 0; i < seq1.length; i++) {
-        result.push(seq1[i] === seq2[i] ? seq2[i]! : this.paramStr);
+        const token1 = seq1[i]!;
+        const token2 = seq2[i]!;
+
+        if (token1 === token2) {
+          result.push(token2);
+        } else {
+          const paramResult = this.strategyChain.parameterize(
+            token1,
+            token2,
+            this.paramStr,
+          );
+          result.push(paramResult.templateToken);
+        }
       }
       return Object.freeze(result);
     }

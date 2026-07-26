@@ -7,6 +7,8 @@
  * @packageDocumentation
  */
 
+import type { TemplatePatternStrategy } from "./TemplatePatternStrategy.js";
+
 // ============================================================
 // Change Type — maps to Drain3 "cluster_created" / "cluster_template_changed" / "none"
 // ============================================================
@@ -110,4 +112,47 @@ export interface DrainOptions {
   readonly paramStr?: string;
   /** Whether tokens containing digits should be treated as parameters. Default: true. */
   readonly parametrizeNumericTokens?: boolean;
+  /**
+   * Template pattern strategies for advanced token parameterization.
+   *
+   * If provided, overrides the default strategy chain.
+   * Use this for full control over template generation behavior.
+   *
+   * @see TemplatePatternStrategy
+   */
+  readonly templatePatternStrategies?: readonly TemplatePatternStrategy[];
+  /**
+   * Enable affix-preserving parameterization (e.g., "bytes<*>sent").
+   *
+   * When true, tokens with common prefixes/suffixes are parameterized
+   * in the middle rather than replaced entirely.
+   *
+   * Default: false (Drain3-compatible behavior)
+   */
+  readonly enableAffixPreserving?: boolean;
+  /**
+   * Minimum prefix/suffix length to trigger affix-preserving parameterization.
+   *
+   * Only used when enableAffixPreserving is true.
+   * Default: 2
+   */
+  readonly minAffixLength?: number;
+  /**
+   * Custom regex patterns for parameterization.
+   *
+   * Each pattern defines a regex and its corresponding template.
+   * Use ${paramStr} as placeholder in templates.
+   *
+   * Example:
+   * ```typescript
+   * customRegexPatterns: [
+   *   { regex: /^(\d{4})-(\d{2})-(\d{2})$/, template: "${paramStr}-${paramStr}-${paramStr}" }
+   * ]
+   * ```
+   */
+  readonly customRegexPatterns?: ReadonlyArray<{
+    readonly regex: RegExp;
+    readonly template: string;
+    readonly confidence?: number;
+  }>;
 }

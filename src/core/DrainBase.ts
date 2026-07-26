@@ -3,6 +3,14 @@ import { LogCluster } from "./LogCluster.js";
 import { LogClusterCache } from "./LogClusterCache.js";
 import { ChangeType, type MatchStrategy } from "./types.js";
 import type { DrainOptions } from "./types.js";
+import type { TemplatePatternStrategyChain } from "./TemplatePatternStrategy.js";
+import {
+  AffixPreservingStrategy,
+  ExactMatchStrategy,
+  FullTokenParameterizationStrategy,
+  RegexParameterizationStrategy,
+  TemplatePatternStrategyChain as StrategyChain,
+} from "./TemplatePatternStrategy.js";
 
 /**
  * Abstract base class for Drain algorithm implementations.
@@ -48,6 +56,9 @@ export abstract class DrainBase {
   /** Whether tokens containing digits are treated as parameters. Python: self.parametrize_numeric_tokens */
   readonly parametrizeNumericTokens: boolean;
 
+  /** Strategy chain for template token parameterization. */
+  readonly strategyChain: TemplatePatternStrategyChain;
+
   // ============================================================
   // State (maps to Python DrainBase.__init__ state initialization)
   // ============================================================
@@ -84,6 +95,10 @@ export abstract class DrainBase {
     extraDelimiters = [],
     paramStr = "<*>",
     parametrizeNumericTokens = true,
+    templatePatternStrategies,
+    enableAffixPreserving = false,
+    minAffixLength = 2,
+    customRegexPatterns = [],
   }: DrainOptions = {}) {
     if (depth < 3) {
       throw new Error(`depth must be at least 3, got ${depth}`);
@@ -101,9 +116,69 @@ export abstract class DrainBase {
     this.paramStr = paramStr;
     this.parametrizeNumericTokens = parametrizeNumericTokens;
 
+    // Build strategy chain for template parameterization
+    this.strategyChain = this.buildStrategyChain({
+      ...(templatePatternStrategies !== undefined
+        ? { templatePatternStrategies }
+        : {}),
+      enableAffixPreserving,
+      minAffixLength,
+      customRegexPatterns,
+    });
+
     // Python: {} if max_clusters is None else LogClusterCache(maxsize=max_clusters)
     this.idToCluster =
       maxClusters === null ? new Map() : new LogClusterCache(maxClusters);
+  }
+
+  /**
+   * Builds the template pattern strategy chain from options.
+   *
+   * Priority order:
+   * 1. Custom strategies (if provided) — use as-is
+   * 2. Built from options: Exact → [Regex] → [AffixPreserving] → FullToken
+   *
+   * Subclasses can override to customize chain construction.
+   */
+  protected buildStrategyChain(options: {
+    templatePatternStrategies?: readonly import("./TemplatePatternStrategy.js").TemplatePatternStrategy[];
+    enableAffixPreserving: boolean;
+    minAffixLength: number;
+    customRegexPatterns: ReadonlyArray<{
+      readonly regex: RegExp;
+      readonly template: string;
+      readonly confidence?: number;
+    }>;
+  }): TemplatePatternStrategyChain {
+    // If custom strategies provided, use them directly
+    if (options.templatePatternStrategies) {
+      return new StrategyChain().registerAll(
+        options.templatePatternStrategies,
+      );
+    }
+
+    // Build from configuration options
+    const chain = new StrategyChain();
+
+    // Always register exact match (highest priority)
+    chain.register(new ExactMatchStrategy());
+
+    // Register regex patterns if provided
+    if (options.customRegexPatterns.length > 0) {
+      chain.register(
+        new RegexParameterizationStrategy(options.customRegexPatterns),
+      );
+    }
+
+    // Register affix-preserving if enabled
+    if (options.enableAffixPreserving) {
+      chain.register(new AffixPreservingStrategy(options.minAffixLength));
+    }
+
+    // Always register full-token fallback (lowest priority)
+    chain.register(new FullTokenParameterizationStrategy());
+
+    return chain;
   }
 
   // ============================================================
