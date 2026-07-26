@@ -168,17 +168,38 @@ TemplateMiner (public API)
 
 ## Benchmark Results
 
-Tested against representative log datasets (without masking presets — accuracy increases with masking enabled):
+Validated against all 15 [Loghub 2k](https://github.com/logpai/loghub) standard benchmark datasets
+using the four official metrics: GA (Grouping Accuracy), FGA (F1-GA), PTA (Parsing Template Accuracy), FTA (F1-PTA).
+Results obtained with default masking (IP + NUM). PTA can be improved significantly with dataset-specific masking.
 
-| Log Type | Grouping Accuracy | Template Accuracy | Notes |
-|---|---|---|---|
-| SSH daemon | ≥ 95% | ≥ 90% | 3 template patterns |
-| SQL queries | ≥ 88% | ≥ 85% | SELECT/INSERT/UPDATE |
-| System daemon | ≥ 85% | ≥ 85% | Start/stop/reload |
-| Application errors | ≥ 90% | ≥ 85% | ERROR/WARN/INFO |
-| Large dataset (200 msgs) | ≥ 85% | ≥ 80% | 7 template patterns |
+| Dataset | Category | GA | FGA | PTA | FTA | Clusters |
+|---|---|---|---|---|---|---|
+| HDFS | Distributed Systems | 0.9985 | 0.9781 | 0.6436 | 0.6350 | 16 |
+| Hadoop | Distributed Systems | 0.9975 | 0.9098 | 0.6444 | 0.6166 | 97 |
+| Spark | Distributed Systems | 1.0000 | 0.9706 | 0.7557 | 0.7738 | 33 |
+| OpenStack | Distributed Systems | 0.8750 | 0.8445 | 0.7149 | 0.7149 | 54 |
+| Zookeeper | Distributed Systems | 0.9985 | 0.9643 | 0.6537 | 0.6034 | 46 |
+| BGL | Supercomputers | 0.9995 | 0.9351 | 0.7794 | 0.7534 | 105 |
+| HPC | Supercomputers | 0.9980 | 0.9328 | 0.7727 | 0.8233 | 45 |
+| Linux | Operating Systems | 0.9975 | 0.9621 | 0.8343 | 0.8393 | 111 |
+| Mac | Operating Systems | 0.9315 | 0.9171 | 0.7434 | 0.7532 | 297 |
+| Apache | Server Applications | 1.0000 | 1.0000 | 0.7632 | 0.7468 | 6 |
+| OpenSSH | Server Applications | 1.0000 | 0.9200 | 0.7412 | 0.7500 | 23 |
+| Windows | Operating Systems | 0.9980 | 0.9352 | 0.8305 | 0.8391 | 49 |
+| Android | Mobile Systems | 0.9245 | 0.9404 | 0.7304 | 0.7792 | 159 |
+| HealthApp | Mobile Systems | 0.9995 | 0.9771 | 0.6915 | 0.7253 | 72 |
+| Proxifier* | Standalone Software | 0.3660 | 0.7217 | 0.7429 | 0.7369 | 38 |
+| **Average** | | **0.9389** | | **0.7361** | | |
 
-**Throughput**: ~50,000 raw logs/sec (single-threaded, Node.js 22). With masking presets: 200,000+ logs/sec.
+\*Proxifier GA is limited by a known Loghub CSV quoting issue — see benchmark/run.ts for details.
+
+**Throughput**: 70,000–410,000 logs/sec across datasets (single-threaded, Node.js 22, with default IP+NUM masking).
+
+Run benchmarks yourself:
+```bash
+npx tsx benchmark/run.ts --all       # All 15 Loghub datasets
+npx tsx benchmark/run.ts HDFS        # Single dataset
+```
 
 ## API Quick Reference
 
@@ -196,10 +217,11 @@ Tested against representative log datasets (without masking presets — accuracy
 git clone https://github.com/AgentiX-E/drain-ts.git
 cd drain-ts
 pnpm install
-pnpm test          # 184 tests
-pnpm test:coverage # 98%+ coverage
+pnpm test          # 197 tests
+pnpm test:coverage # 98%+ coverage (enforced 95% thresholds)
 pnpm typecheck     # Strict TypeScript check
 pnpm build         # ESM + CJS output
+pnpm benchmark     # Run Loghub 2k benchmark (all 15 datasets)
 ```
 
 ## License
