@@ -17,3 +17,13 @@ updates:
       prefix-development: "chore(deps-dev)"
     reviewers:
       - "Lambertyan"
+    ignore:
+      # Keep compatible with engine.node >=22
+      - dependency-name: "@types/node"
+        versions: [">=23.0.0"]
+      # Keep stable TypeScript — our strict config needs careful evaluation
+      - dependency-name: "typescript"
+        versions: [">=6.0.0"]
+      # Keep stable ESLint — our config is minimal
+      - dependency-name: "eslint"
+        versions: [">=10.0.0"]
