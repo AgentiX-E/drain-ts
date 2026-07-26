@@ -55,3 +55,6 @@ export {
   NullProfiler,
   SimpleProfiler,
 } from "./Profiler.js";
+
+// Streaming
+export { DrainStream, createDrainStream } from "./DrainStream.js";
