@@ -17,10 +17,18 @@ concurrency:
 
 jobs:
   # ─── Quality Gates (lint + typecheck + build + unit-test + coverage) ───
-  quality:
+  # Node 22 (LTS) — primary target
+  quality-node22:
     uses: ./.github/workflows/_quality.yml
     with:
       node_version: '22'
+      coverage_tier: unit
+
+  # Node 24 (Current) — forward compatibility
+  quality-node24:
+    uses: ./.github/workflows/_quality.yml
+    with:
+      node_version: '24'
       coverage_tier: unit
 
   # ═══════════════════════════════════════════════════════════════════════
@@ -29,7 +37,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════
   deploy-pages:
     if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
-    needs: [quality]
+    needs: [quality-node22]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
