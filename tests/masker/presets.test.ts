@@ -87,8 +87,8 @@ describe("Convenience collections", () => {
     expect(DEFAULT_MASKING_INSTRUCTIONS[1]!.maskName).toBe("NUM");
   });
 
-  it("should provide EXTENDED_MASKING_INSTRUCTIONS with 5 presets", () => {
-    expect(EXTENDED_MASKING_INSTRUCTIONS.length).toBe(5);
+  it("should provide EXTENDED_MASKING_INSTRUCTIONS with 8 presets", () => {
+    expect(EXTENDED_MASKING_INSTRUCTIONS.length).toBe(8);
   });
 
   it("should freeze all collections for immutability", () => {

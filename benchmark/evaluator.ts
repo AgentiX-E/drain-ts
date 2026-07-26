@@ -227,7 +227,12 @@ export function calculateParsingTemplateAccuracy(
 
       let overlap = 0;
       for (let j = 0; j < gtTokens.length; j++) {
-        if (gtTokens[j] === parsedTokens[j]) overlap++;
+        const gtTok = gtTokens[j]!;
+        const parsedTok = parsedTokens[j]!;
+        // Exact match, OR both tokens are masked parameters (<...>)
+        if (gtTok === parsedTok || (isMaskedToken(gtTok) && isMaskedToken(parsedTok))) {
+          overlap++;
+        }
       }
 
       if (overlap > bestOverlap) {
@@ -267,6 +272,17 @@ export function calculateParsingTemplateAccuracy(
 // ============================================================
 // Full evaluation
 // ============================================================
+
+/**
+ * Returns true if a token is a masked parameter placeholder.
+ * Matches tokens like `<*>`, `<IP>`, `<NUM>`, `<BLOCK_ID>`, etc.
+ *
+ * Used by PTA comparison to treat all masked parameter tokens
+ * as equivalent — the standard Loghub benchmark normalization.
+ */
+function isMaskedToken(token: string): boolean {
+  return token.startsWith("<") && token.endsWith(">") && token.length > 2;
+}
 
 /**
  * Runs the complete evaluation on a dataset.

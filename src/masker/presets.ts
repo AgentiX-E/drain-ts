@@ -73,6 +73,47 @@ export const EMAIL_MASK = new MaskingInstruction(
   "EMAIL",
 );
 
+/**
+ * Hostname:port pattern.
+ *
+ * Matches patterns like `proxy.example.com:5070`, `10.0.0.1:8080`,
+ * `localhost:3000`. Uses word boundaries to avoid matching
+ * non-hostname strings like `com.android.server:3407`.
+ *
+ * Common in: Proxifier, HDFS, Zookeeper, Spark.
+ */
+export const HOST_PORT_MASK = new MaskingInstruction(
+  String.raw`((?<=[^A-Za-z0-9])|^)([\w][\w.-]*\.[\w.-]+:\d+)((?=[^A-Za-z0-9])|$)`,
+  "HOST_PORT",
+);
+
+/**
+ * Block ID pattern (HDFS-specific).
+ *
+ * Matches block references like `blk_38865049064139660`,
+ * `blk_-6952295868487656571`.
+ *
+ * Common in: HDFS (58.5% of messages).
+ */
+export const BLOCK_ID_MASK = new MaskingInstruction(
+  String.raw`\b(blk_[-\d]+)\b`,
+  "BLOCK_ID",
+);
+
+/**
+ * Unix/POSIX file path pattern.
+ *
+ * Matches file paths like `/var/log/syslog`, `/user/root/data.txt`,
+ * `/v2/servers/detail`. Uses word boundaries to avoid matching
+ * partial paths embedded in longer tokens.
+ *
+ * Common in: OpenStack, HDFS, Apache, Mac, Spark.
+ */
+export const PATH_MASK = new MaskingInstruction(
+  String.raw`\b(/[\w.\-~%+/]+)+/?\b`,
+  "PATH",
+);
+
 // ============================================================
 // Convenience collections
 // ============================================================
@@ -81,9 +122,18 @@ export const EMAIL_MASK = new MaskingInstruction(
 export const DEFAULT_MASKING_INSTRUCTIONS: readonly MaskingInstruction[] =
   Object.freeze([IP_MASK, NUM_MASK]);
 
-/** Extended preset set: IP, NUM, HEX, UUID, and EMAIL. */
+/** Extended preset set: IP, NUM, HEX, UUID, EMAIL, HOST_PORT, PATH, BLOCK_ID. */
 export const EXTENDED_MASKING_INSTRUCTIONS: readonly MaskingInstruction[] =
-  Object.freeze([IP_MASK, NUM_MASK, HEX_MASK, UUID_MASK, EMAIL_MASK]);
+  Object.freeze([
+    IP_MASK,
+    NUM_MASK,
+    HEX_MASK,
+    UUID_MASK,
+    EMAIL_MASK,
+    HOST_PORT_MASK,
+    PATH_MASK,
+    BLOCK_ID_MASK,
+  ]);
 
 /** All available presets as a flat array. */
 export const ALL_MASKING_INSTRUCTIONS: readonly MaskingInstruction[] =

@@ -22,7 +22,7 @@ import * as http from "node:http";
 import * as https from "node:https";
 import { TemplateMiner } from "../src/TemplateMiner.js";
 import { TemplateMinerConfig } from "../src/TemplateMinerConfig.js";
-import { DEFAULT_MASKING_INSTRUCTIONS } from "../src/masker/presets.js";
+import { EXTENDED_MASKING_INSTRUCTIONS } from "../src/masker/presets.js";
 import {
   evaluate,
   type GroundTruthEntry,
@@ -46,19 +46,12 @@ interface DatasetDescriptor {
 /**
  * Loghub 2k datasets — all 15 official benchmarks.
  *
- * GA (Grouping Accuracy) targets are calibrated against actual
- * performance of the Drain algorithm with default (IP + NUM) masking.
- * Achievable GA is generally 0.85–1.00.
+ * GA (Grouping Accuracy) targets are calibrated against Drain with
+ * extended masking (IP + NUM + HEX + UUID + EMAIL + HOST_PORT + PATH + BLOCK_ID).
  *
- * PTA (Parsing Template Accuracy) targets reflect Drain's inherent
- * template quality with default masking only. PTA can be improved
- * significantly (often to 0.90+) by adding dataset-specific masking
- * instructions. These thresholds represent the minimum acceptable
- * baseline — the lower bound of correctness for the algorithm port.
- *
- * Proxifier is excluded from pass/fail due to a known Loghub CSV
- * quoting issue (embedded double-quotes in the Content column that
- * require RFC 4180 CSV parsing). This is tracked as I5 task.
+ * PTA (Parsing Template Accuracy) uses masked-token normalization:
+ * all `<...>` tokens (GT `<*>` and parser `<IP>`, `<NUM>`, etc.)
+ * are treated as equivalent — the standard Loghub benchmark approach.
  */
 const DATASETS: DatasetDescriptor[] = [
   {
@@ -67,7 +60,7 @@ const DATASETS: DatasetDescriptor[] = [
     groundTruthUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/HDFS/HDFS_2k.log_structured.csv",
     category: "Distributed Systems",
     targetGA: 0.990,
-    targetPTA: 0.600,
+    targetPTA: 0.750,
   },
   {
     name: "Hadoop",
@@ -75,7 +68,7 @@ const DATASETS: DatasetDescriptor[] = [
     groundTruthUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/Hadoop/Hadoop_2k.log_structured.csv",
     category: "Distributed Systems",
     targetGA: 0.940,
-    targetPTA: 0.600,
+    targetPTA: 0.790,
   },
   {
     name: "Spark",
@@ -83,7 +76,7 @@ const DATASETS: DatasetDescriptor[] = [
     groundTruthUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/Spark/Spark_2k.log_structured.csv",
     category: "Distributed Systems",
     targetGA: 0.910,
-    targetPTA: 0.650,
+    targetPTA: 0.750,
   },
   {
     name: "OpenStack",
@@ -91,7 +84,7 @@ const DATASETS: DatasetDescriptor[] = [
     groundTruthUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/OpenStack/OpenStack_2k.log_structured.csv",
     category: "Distributed Systems",
     targetGA: 0.850,
-    targetPTA: 0.680,
+    targetPTA: 0.750,
   },
   {
     name: "Zookeeper",
@@ -99,7 +92,7 @@ const DATASETS: DatasetDescriptor[] = [
     groundTruthUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/Zookeeper/Zookeeper_2k.log_structured.csv",
     category: "Distributed Systems",
     targetGA: 0.980,
-    targetPTA: 0.600,
+    targetPTA: 0.800,
   },
   {
     name: "BGL",
@@ -107,7 +100,7 @@ const DATASETS: DatasetDescriptor[] = [
     groundTruthUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/BGL/BGL_2k.log_structured.csv",
     category: "Supercomputers",
     targetGA: 0.960,
-    targetPTA: 0.730,
+    targetPTA: 0.820,
   },
   {
     name: "HPC",
@@ -115,7 +108,7 @@ const DATASETS: DatasetDescriptor[] = [
     groundTruthUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/HPC/HPC_2k.log_structured.csv",
     category: "Supercomputers",
     targetGA: 0.930,
-    targetPTA: 0.720,
+    targetPTA: 0.850,
   },
   {
     name: "Linux",
@@ -123,7 +116,7 @@ const DATASETS: DatasetDescriptor[] = [
     groundTruthUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/Linux/Linux_2k.log_structured.csv",
     category: "Operating Systems",
     targetGA: 0.750,
-    targetPTA: 0.600,
+    targetPTA: 0.700,
   },
   {
     name: "Mac",
@@ -131,7 +124,7 @@ const DATASETS: DatasetDescriptor[] = [
     groundTruthUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/Mac/Mac_2k.log_structured.csv",
     category: "Operating Systems",
     targetGA: 0.850,
-    targetPTA: 0.700,
+    targetPTA: 0.750,
   },
   {
     name: "Apache",
@@ -139,7 +132,7 @@ const DATASETS: DatasetDescriptor[] = [
     groundTruthUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/Apache/Apache_2k.log_structured.csv",
     category: "Server Applications",
     targetGA: 0.990,
-    targetPTA: 0.720,
+    targetPTA: 0.900,
   },
   {
     name: "OpenSSH",
@@ -147,7 +140,7 @@ const DATASETS: DatasetDescriptor[] = [
     groundTruthUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/OpenSSH/OpenSSH_2k.log_structured.csv",
     category: "Server Applications",
     targetGA: 0.880,
-    targetPTA: 0.700,
+    targetPTA: 0.800,
   },
   {
     name: "Windows",
@@ -155,7 +148,7 @@ const DATASETS: DatasetDescriptor[] = [
     groundTruthUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/Windows/Windows_2k.log_structured.csv",
     category: "Operating Systems",
     targetGA: 0.990,
-    targetPTA: 0.780,
+    targetPTA: 0.850,
   },
   {
     name: "Android",
@@ -163,7 +156,7 @@ const DATASETS: DatasetDescriptor[] = [
     groundTruthUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/Android/Android_2k.log_structured.csv",
     category: "Mobile Systems",
     targetGA: 0.900,
-    targetPTA: 0.660,
+    targetPTA: 0.710,
   },
   {
     name: "HealthApp",
@@ -171,15 +164,15 @@ const DATASETS: DatasetDescriptor[] = [
     groundTruthUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/HealthApp/HealthApp_2k.log_structured.csv",
     category: "Mobile Systems",
     targetGA: 0.850,
-    targetPTA: 0.650,
+    targetPTA: 0.750,
   },
   {
     name: "Proxifier",
     logUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/Proxifier/Proxifier_2k.log",
     groundTruthUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/Proxifier/Proxifier_2k.log_structured.csv",
     category: "Standalone Software",
-    targetGA: 0.360,  // Known limitation: CSV quoting issue in Loghub data
-    targetPTA: 0.700, // Known limitation: CSV quoting issue in Loghub data
+    targetGA: 0.350,  // Known GT tokenization mismatch: GT produced with ':' extra delimiter
+    targetPTA: 0.800, // PTA normalized via mask-token equivalence
   },
 ];
 
@@ -454,16 +447,14 @@ async function runDataset(
   const { messages, groundTruth } = await loadLoghubDataset(ds);
 
   // Run drain-ts on Content messages (standard Loghub benchmark approach).
-  // Default masking (IP + NUM) is applied as Drain3 typically recommends
-  // masking to improve structural pattern recognition. Masking is the
-  // standard Loghub benchmark approach — without masking, PTA will be
-  // lower because Drain cannot distinguish variable values from constants.
+  // Extended masking (IP, NUM, HEX, UUID, EMAIL, HOST_PORT, PATH, BLOCK_ID)
+  // provides comprehensive variable detection across all 15 Loghub datasets.
   const miner = new TemplateMiner({
     config: TemplateMinerConfig.from({
       simTh: 0.4,
       depth: 4,
       maxChildren: 100,
-      maskingInstructions: [...DEFAULT_MASKING_INSTRUCTIONS],
+      maskingInstructions: [...EXTENDED_MASKING_INSTRUCTIONS],
     }),
   });
 
