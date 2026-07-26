@@ -4,8 +4,8 @@
 
 [![CI](https://github.com/AgentiX-E/drain-ts/actions/workflows/ci.yml/badge.svg)](https://github.com/AgentiX-E/drain-ts/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/@agentix-e/drain-ts?color=blue)](https://www.npmjs.com/package/@agentix-e/drain-ts)
-[![Coverage](https://img.shields.io/badge/coverage-report-blue)](https://agentix-e.github.io/drain-ts/coverage/)
-[![Benchmark](https://img.shields.io/badge/benchmark-Loghub%202k-blue)](https://agentix-e.github.io/drain-ts/benchmark/)
+[![Coverage](https://img.shields.io/badge/coverage-report-blue)](https://agentix-e.github.io/drain-ts/coverage-report/)
+[![Benchmark](https://img.shields.io/badge/benchmark-Loghub%202k-blue)](https://agentix-e.github.io/drain-ts/benchmark-report/)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22-green)](https://nodejs.org/)
 [![npm downloads](https://img.shields.io/npm/dm/@agentix-e/drain-ts?color=blue)](https://www.npmjs.com/package/@agentix-e/drain-ts)
 
@@ -210,12 +210,26 @@ npx tsx benchmark/run.ts HDFS        # Single dataset
 git clone https://github.com/AgentiX-E/drain-ts.git
 cd drain-ts
 pnpm install
-pnpm test          # 197 tests
-pnpm test:coverage # 98%+ coverage (enforced 95% thresholds)
+pnpm test          # 333 tests
+pnpm test:coverage # Coverage report (enforced thresholds)
 pnpm typecheck     # Strict TypeScript check
 pnpm build         # ESM + CJS output
 pnpm benchmark     # Run Loghub 2k benchmark (all 15 datasets)
 ```
+
+## External Persistence
+
+drain-ts ships with `FilePersistence` and `MemoryPersistence`. Implement the `PersistenceHandler` interface for any backend — Redis, Kafka, S3, PostgreSQL — in ~15 lines:
+
+```typescript
+import type { PersistenceHandler } from "@agentix-e/drain-ts";
+
+// Redis: implements PersistenceHandler { saveState, loadState }
+// Kafka: implements PersistenceHandler { saveState, loadState }  
+// S3:    implements PersistenceHandler { saveState, loadState }
+```
+
+Full examples for Redis, Kafka, and S3 are available in the [repository](https://github.com/AgentiX-E/drain-ts).
 
 ## License
 
