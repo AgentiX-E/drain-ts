@@ -41,6 +41,9 @@ interface DatasetDescriptor {
   category: string;
   targetGA: number;
   targetPTA: number;
+  /** Extra delimiters for tokenization (Drain3 `drain_extra_delimiters` equivalent).
+   *  Per-dataset override for cases where GT was produced with different tokenization. */
+  drainExtraDelimiters?: readonly string[];
 }
 
 /**
@@ -171,8 +174,8 @@ const DATASETS: DatasetDescriptor[] = [
     logUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/Proxifier/Proxifier_2k.log",
     groundTruthUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/Proxifier/Proxifier_2k.log_structured.csv",
     category: "Standalone Software",
-    targetGA: 0.350,  // Known GT tokenization mismatch: GT produced with ':' extra delimiter
-    targetPTA: 0.800, // PTA normalized via mask-token equivalence
+    targetGA: 0.350,
+    targetPTA: 0.800,
   },
 ];
 
@@ -449,12 +452,16 @@ async function runDataset(
   // Run drain-ts on Content messages (standard Loghub benchmark approach).
   // Extended masking (IP, NUM, HEX, UUID, EMAIL, HOST_PORT, PATH, BLOCK_ID)
   // provides comprehensive variable detection across all 15 Loghub datasets.
+  // Per-dataset extraDelimiters are applied when defined (e.g., ':' for Proxifier).
   const miner = new TemplateMiner({
     config: TemplateMinerConfig.from({
       simTh: 0.4,
       depth: 4,
       maxChildren: 100,
       maskingInstructions: [...EXTENDED_MASKING_INSTRUCTIONS],
+      ...(ds.drainExtraDelimiters
+        ? { drainExtraDelimiters: [...ds.drainExtraDelimiters] }
+        : {}),
     }),
   });
 
