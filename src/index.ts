@@ -58,3 +58,6 @@ export {
 
 // Streaming
 export { DrainStream, createDrainStream } from "./DrainStream.js";
+
+// Workers
+export { WorkerPool } from "./WorkerPool.js";
