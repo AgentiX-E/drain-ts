@@ -1,7 +1,8 @@
 import { Node } from "./Node.js";
 import { LogCluster } from "./LogCluster.js";
 import { LogClusterCache } from "./LogClusterCache.js";
-import type { DrainOptions, MatchStrategy } from "./types.js";
+import { ChangeType, type MatchStrategy } from "./types.js";
+import type { DrainOptions } from "./types.js";
 
 /**
  * Abstract base class for Drain algorithm implementations.
@@ -162,8 +163,26 @@ export abstract class DrainBase {
    * Recursively traverses the subtree rooted at the token-count node.
    */
   getClustersIdsForSeqLen(seqLen: number): number[] {
-    const tokenCountStr = String(seqLen);
-    const curNode = this.rootNode.keyToChildNode.get(tokenCountStr);
+    return this._getClustersIdsForRootKey(String(seqLen));
+  }
+
+  /**
+   * Returns all cluster IDs for a given root-level tree key.
+   *
+   * Used by JaccardDrain which indexes by first token (string)
+   * instead of token count (number).
+   *
+   * Recursively traverses the subtree rooted at the matching node.
+   */
+  getClustersIdsForFirstToken(firstToken: string): number[] {
+    return this._getClustersIdsForRootKey(firstToken);
+  }
+
+  /**
+   * Internal: collects cluster IDs from a subtree rooted at a given key.
+   */
+  private _getClustersIdsForRootKey(key: string): number[] {
+    const curNode = this.rootNode.keyToChildNode.get(key);
     if (!curNode) return [];
 
     const result: number[] = [];
@@ -270,6 +289,86 @@ export abstract class DrainBase {
     }
 
     return maxSim >= simTh ? bestCluster : null;
+  }
+
+  // ============================================================
+  // addLogMessage — concrete method shared by Drain and JaccardDrain
+  // (maps to Python DrainBase.add_log_message, drain.py L136-L176)
+  // ============================================================
+
+  /**
+   * Processes a single log message through the Drain algorithm.
+   *
+   * This is the primary entry point for training mode. Each call updates
+   * the internal state — either by creating a new cluster, updating an
+   * existing template, or incrementing a cluster's count.
+   *
+   * Python: DrainBase.add_log_message(content) → Tuple[LogCluster, str]
+   *
+   * Processing flow (identical to Python):
+   * 1. Tokenize → getContentAsTokens
+   * 2. Tree search → treeSearch(includeParams=false)
+   * 3a. No match → create new cluster → changeType = "cluster_created"
+   * 3b. Match found → merge templates → "cluster_template_changed" or "none"
+   * 4. Return (cluster, changeType)
+   *
+   * @param content - The raw log message to process.
+   * @returns The assigned cluster and the type of change that occurred.
+   */
+  addLogMessage(content: string): {
+    cluster: LogCluster;
+    changeType: typeof ChangeType[keyof typeof ChangeType];
+  } {
+    const contentTokens = this.getContentAsTokens(content);
+
+    // Phase 1: Tree search
+    let matchCluster = this.treeSearch(
+      this.rootNode,
+      contentTokens,
+      this.simTh,
+      false,
+    );
+
+    let changeType: typeof ChangeType[keyof typeof ChangeType];
+
+    if (matchCluster === null) {
+      // Phase 2: Create new cluster
+      this.clustersCounter += 1;
+      const clusterId = this.clustersCounter;
+
+      matchCluster = new LogCluster(contentTokens, clusterId);
+      this.idToCluster.set(clusterId, matchCluster);
+      this.addSeqToPrefixTree(this.rootNode, matchCluster);
+
+      changeType = ChangeType.ClusterCreated;
+    } else {
+      // Phase 3: Update existing cluster
+      const newTemplateTokens = this.createTemplate(
+        contentTokens,
+        matchCluster.logTemplateTokens,
+      );
+
+      if (
+        newTemplateTokens.length === matchCluster.logTemplateTokens.length &&
+        newTemplateTokens.every(
+          (t, i) => t === matchCluster.logTemplateTokens[i],
+        )
+      ) {
+        changeType = ChangeType.None;
+      } else {
+        matchCluster.logTemplateTokens = newTemplateTokens;
+        changeType = ChangeType.ClusterTemplateChanged;
+      }
+
+      matchCluster.size += 1;
+
+      // Trigger LRU access record update
+      if (this.idToCluster instanceof LogClusterCache) {
+        this.idToCluster.touch(matchCluster.clusterId);
+      }
+    }
+
+    return { cluster: matchCluster, changeType };
   }
 
   // ============================================================

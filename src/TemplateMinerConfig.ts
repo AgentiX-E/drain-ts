@@ -21,6 +21,15 @@ import type { MaskingInstruction } from "./masker/MaskingInstruction.js";
 export class TemplateMinerConfig {
   // ===================== [DRAIN] section =====================
 
+  /**
+   * Drain algorithm variant.
+   * - `"Drain"`: Standard fixed-depth prefix tree with position-wise similarity.
+   * - `"JaccardDrain"`: First-token-based tree with Jaccard set similarity.
+   *
+   * Default: "Drain" (matches Drain3 default).
+   */
+  engine: "Drain" | "JaccardDrain" = "Drain";
+
   /** Similarity threshold for creating new clusters. Default: 0.4 */
   simTh: number = 0.4;
 

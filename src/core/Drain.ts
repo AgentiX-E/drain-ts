@@ -1,6 +1,5 @@
 import { DrainBase } from "./DrainBase.js";
 import { LogCluster } from "./LogCluster.js";
-import { LogClusterCache } from "./LogClusterCache.js";
 import { Node } from "./Node.js";
 import { ChangeType, MatchStrategy } from "./types.js";
 import type { DrainOptions } from "./types.js";
@@ -39,87 +38,6 @@ export class Drain extends DrainBase {
     super(options);
   }
 
-  // ============================================================
-  // addLogMessage (maps to Python DrainBase.add_log_message, drain.py L136-L176)
-  // ============================================================
-
-  /**
-   * Processes a single log message through the Drain algorithm.
-   *
-   * This is the primary entry point for training mode. Each call updates
-   * the internal state — either by creating a new cluster, updating an
-   * existing template, or incrementing a cluster's count.
-   *
-   * Python: DrainBase.add_log_message(content) → Tuple[LogCluster, str]
-   *
-   * Processing flow (identical to Python):
-   * 1. Tokenize → getContentAsTokens
-   * 2. Tree search → treeSearch(includeParams=false)
-   * 3a. No match → create new cluster → changeType = "cluster_created"
-   * 3b. Match found → merge templates → "cluster_template_changed" or "none"
-   * 4. Return (cluster, changeType)
-   *
-   * @param content - The raw log message to process.
-   * @returns The assigned cluster and the type of change that occurred.
-   */
-  addLogMessage(content: string): {
-    cluster: LogCluster;
-    changeType: typeof ChangeType[keyof typeof ChangeType];
-  } {
-    const contentTokens = this.getContentAsTokens(content);
-
-    // Phase 1: Tree search
-    // Python: match_cluster = self.tree_search(self.root_node, content_tokens, self.sim_th, False)
-    let matchCluster = this.treeSearch(
-      this.rootNode,
-      contentTokens,
-      this.simTh,
-      false,
-    );
-
-    let changeType: typeof ChangeType[keyof typeof ChangeType];
-
-    if (matchCluster === null) {
-      // Phase 2: Create new cluster
-      // Python: self.clusters_counter += 1; cluster_id = self.clusters_counter
-      this.clustersCounter += 1;
-      const clusterId = this.clustersCounter;
-
-      matchCluster = new LogCluster(contentTokens, clusterId);
-      this.idToCluster.set(clusterId, matchCluster);
-      this.addSeqToPrefixTree(this.rootNode, matchCluster);
-
-      changeType = ChangeType.ClusterCreated;
-    } else {
-      // Phase 3: Update existing cluster
-      // Python: new_template_tokens = self.create_template(content_tokens, match_cluster.log_template_tokens)
-      const newTemplateTokens = this.createTemplate(
-        contentTokens,
-        matchCluster.logTemplateTokens,
-      );
-
-      // Python: if tuple(new_template_tokens) == match_cluster.log_template_tokens
-      if (this._arraysEqual(newTemplateTokens, matchCluster.logTemplateTokens)) {
-        changeType = ChangeType.None;
-      } else {
-        matchCluster.logTemplateTokens = newTemplateTokens;
-        changeType = ChangeType.ClusterTemplateChanged;
-      }
-
-      matchCluster.size += 1;
-
-      // Trigger LRU access record update
-      // Python: self.id_to_cluster[match_cluster.cluster_id]
-      // (triggers Cache.__getitem__ in LRU cache, updating access order)
-      this._touchLru(matchCluster.clusterId);
-    }
-
-    return { cluster: matchCluster, changeType };
-  }
-
-  // ============================================================
-  // treeSearch (maps to Python Drain.tree_search, drain.py L282-L322)
-  // ============================================================
 
   /**
    * Searches the prefix tree for the best-matching cluster.
@@ -506,34 +424,5 @@ export class Drain extends DrainBase {
     };
 
     printNode("root", this.rootNode, 0);
-  }
-
-  // ============================================================
-  // Private helpers
-  // ============================================================
-
-  /**
-   * Compares two readonly arrays element-by-element.
-   *
-   * Python: tuple(a) == tuple(b) for template token comparison
-   */
-  private _arraysEqual(a: readonly string[], b: readonly string[]): boolean {
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) {
-      if (a[i] !== b[i]) return false;
-    }
-    return true;
-  }
-
-  /**
-   * Triggers LRU access record update for a cluster.
-   *
-   * Python: self.id_to_cluster[match_cluster.cluster_id]
-   * (Cache.__getitem__ triggers LRU order update)
-   */
-  private _touchLru(clusterId: number): void {
-    if (this.idToCluster instanceof LogClusterCache) {
-      this.idToCluster.touch(clusterId);
-    }
   }
 }

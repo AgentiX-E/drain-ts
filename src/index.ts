@@ -10,6 +10,7 @@
 // Core algorithm exports
 export {
   Drain,
+  JaccardDrain,
   DrainBase,
   LogCluster,
   LogClusterCache,

@@ -5,6 +5,7 @@
  */
 
 export { Drain } from "./Drain.js";
+export { JaccardDrain } from "./JaccardDrain.js";
 export { DrainBase } from "./DrainBase.js";
 export { LogCluster } from "./LogCluster.js";
 export { LogClusterCache } from "./LogClusterCache.js";

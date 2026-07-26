@@ -1,4 +1,6 @@
 import { Drain } from "./core/Drain.js";
+import { JaccardDrain } from "./core/JaccardDrain.js";
+import type { DrainBase } from "./core/DrainBase.js";
 import { LogCluster } from "./core/LogCluster.js";
 import { LogMasker } from "./masker/LogMasker.js";
 import { TemplateMinerConfig } from "./TemplateMinerConfig.js";
@@ -73,8 +75,8 @@ export class TemplateMiner {
   /** Configuration snapshot. */
   readonly config: TemplateMinerConfig;
 
-  /** The Drain clustering engine. */
-  readonly drain: Drain;
+  /** The Drain clustering engine (Drain or JaccardDrain). */
+  readonly drain: DrainBase;
 
   /** The log masking preprocessor. */
   readonly masker: LogMasker;
@@ -134,8 +136,9 @@ export class TemplateMiner {
     // Build paramStr from mask prefix/suffix: "<*>" by default
     const paramStr = `${config.maskPrefix}*${config.maskSuffix}`;
 
-    // Create the Drain engine
-    this.drain = new Drain({
+    // Create the Drain engine (Drain or JaccardDrain based on config.engine)
+    const DrainCtor = config.engine === "JaccardDrain" ? JaccardDrain : Drain;
+    this.drain = new DrainCtor({
       depth: config.depth,
       simTh: config.simTh,
       maxChildren: config.maxChildren,
