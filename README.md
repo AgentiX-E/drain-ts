@@ -4,11 +4,10 @@
 
 [![CI](https://github.com/AgentiX-E/drain-ts/actions/workflows/ci.yml/badge.svg)](https://github.com/AgentiX-E/drain-ts/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/@agentix-e/drain-ts?color=blue)](https://www.npmjs.com/package/@agentix-e/drain-ts)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Coverage](https://img.shields.io/badge/coverage-report-blue)](https://agentix-e.github.io/drain-ts/coverage/)
+[![Benchmark](https://img.shields.io/badge/benchmark-Loghub%202k-blue)](https://agentix-e.github.io/drain-ts/benchmark/)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22-green)](https://nodejs.org/)
 [![npm downloads](https://img.shields.io/npm/dm/@agentix-e/drain-ts?color=blue)](https://www.npmjs.com/package/@agentix-e/drain-ts)
-[![Coverage](https://agentix-e.github.io/drain-ts/coverage/badge.svg)](https://agentix-e.github.io/drain-ts/coverage/)
-[![Benchmark](https://img.shields.io/badge/benchmark-Loghub%202k-blue)](https://agentix-e.github.io/drain-ts/benchmark/)
 
 ---
 

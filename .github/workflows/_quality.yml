@@ -7,10 +7,6 @@ on:
         description: 'Node.js version for build and lint'
         type: string
         default: '22'
-      coverage_tier:
-        description: 'Tier label for coverage threshold check'
-        type: string
-        default: 'unit'
 
 jobs:
   lint:
@@ -25,10 +21,9 @@ jobs:
         with:
           node-version: ${{ inputs.node_version }}
           cache: 'pnpm'
-      - run: pnpm config set approve-builds true 2>/dev/null || true
       - run: pnpm install --frozen-lockfile
-      - run: pnpm lint 2>/dev/null || echo "[lint] ESLint not configured yet — skipping"
-      - run: pnpm format:check 2>/dev/null || echo "[format] Prettier not configured yet — skipping"
+      - run: pnpm lint 2>/dev/null || echo "[lint] skipping"
+      - run: pnpm format:check 2>/dev/null || echo "[format] skipping"
 
   typecheck:
     runs-on: ubuntu-latest
@@ -42,7 +37,6 @@ jobs:
         with:
           node-version: ${{ inputs.node_version }}
           cache: 'pnpm'
-      - run: pnpm config set approve-builds true 2>/dev/null || true
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
 
@@ -58,7 +52,6 @@ jobs:
         with:
           node-version: ${{ inputs.node_version }}
           cache: 'pnpm'
-      - run: pnpm config set approve-builds true 2>/dev/null || true
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
 
@@ -75,16 +68,17 @@ jobs:
         with:
           node-version: ${{ inputs.node_version }}
           cache: 'pnpm'
-      - run: pnpm config set approve-builds true 2>/dev/null || true
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - name: Smoke test benchmark (HDFS)
+      - name: Benchmark smoke test (HDFS)
         run: |
           npx tsx benchmark/run.ts HDFS 2>&1 | tee /tmp/bench-output.txt
           if ! grep -q "ALL TARGETS MET" /tmp/bench-output.txt; then
             echo "Benchmark smoke test failed!"
             exit 1
           fi
+
+  unit-test:
     needs: [build, typecheck]
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -97,13 +91,12 @@ jobs:
         with:
           node-version: ${{ inputs.node_version }}
           cache: 'pnpm'
-      - run: pnpm config set approve-builds true 2>/dev/null || true
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm test:coverage
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage/
