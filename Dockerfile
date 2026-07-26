@@ -1,9 +1,11 @@
 # ---- Build Stage ----
 FROM node:22-alpine AS builder
 WORKDIR /app
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile || pnpm install
+# pnpm.onlyBuiltDependencies handles esbuild build approval
+ENV COREPACK_ENABLE_STRICT=0
+RUN pnpm install --ignore-scripts
 COPY tsconfig.json tsup.config.ts ./
 COPY src/ ./src/
 RUN pnpm build

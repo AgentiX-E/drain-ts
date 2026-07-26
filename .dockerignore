@@ -1,0 +1,10 @@
+node_modules
+dist
+.git
+.gitignore
+*.md
+!README.md
+.github
+tests
+benchmark
+docs
