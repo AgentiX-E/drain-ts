@@ -118,4 +118,29 @@ describe("DrainStream", () => {
     const stream = createDrainStream();
     expect(stream).toBeInstanceOf(DrainStream);
   });
+
+  it("should emit error on malformed input via _transform catch", async () => {
+    const stream = new DrainStream();
+    // Force an error by corrupting internal state
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (stream as any)._miner.addLogMessage = () => {
+      throw new Error("synthetic transform error");
+    };
+    await expect(
+      collect(stringStream("anything\n").pipe(stream)),
+    ).rejects.toThrow("synthetic transform error");
+  });
+
+  it("should emit error in _flush on malformed flush", async () => {
+    const stream = new DrainStream();
+    // Force an error during flush
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (stream as any)._miner.addLogMessage = () => {
+      throw new Error("synthetic flush error");
+    };
+    // Feed a line WITHOUT trailing newline to trigger _flush
+    await expect(
+      collect(stringStream("incomplete").pipe(stream)),
+    ).rejects.toThrow("synthetic flush error");
+  });
 });
