@@ -31,6 +31,25 @@ jobs:
       node_version: '24'
       coverage_tier: unit
 
+  # ─── Browser compatibility (Playwright) ───
+  browser-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm config set approve-builds true 2>/dev/null || true
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:browser
+      - run: npx playwright install chromium --with-deps
+      - run: pnpm test:browser
+
   # ═══════════════════════════════════════════════════════════════════════
   # GitHub Pages — publish API docs + coverage on push to master
   # Quality gate must pass before deployment.
