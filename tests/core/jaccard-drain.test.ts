@@ -193,3 +193,51 @@ describe("JaccardDrain: match strategy coverage", () => {
     expect(c).not.toBeNull();
   });
 });
+
+describe("JaccardDrain: maxChildren deep branch coverage", () => {
+  it("should exercise L187-189: paramStr absent, room for new child", () => {
+    // maxChildren=3, depth=6: enough room for children before wildcard
+    const d = new JaccardDrain({ maxChildren: 3, depth: 6, parametrizeNumericTokens: false });
+    d.addLogMessage("root alpha one");
+    d.addLogMessage("root beta two");
+    // paramStr NOT in keyToChildNode, size=2, 2+1=3 < maxChildren=3 → L187-189
+    d.addLogMessage("root gamma three");
+    expect(d.idToCluster.size).toBeGreaterThanOrEqual(1);
+  });
+
+  it("should exercise L203: paramStr exists, size >= maxChildren, route to paramStr", () => {
+    // maxChildren=1: first child fills capacity
+    const d = new JaccardDrain({ maxChildren: 1, depth: 6, parametrizeNumericTokens: false });
+    // First non-numeric token: paramStr absent, size 0+1 < 1 → create token node
+    d.addLogMessage("x hello world");
+    // Second non-numeric token: paramStr absent, size 1+1 = 2 > maxChildren=1 → 
+    // This should go to L187 (the `paramStr in keyToChildNode` is false),
+    // then `size + 1` = 2 > 1 → else branch (L203)
+    d.addLogMessage("x goodbye world");
+    expect(d.idToCluster.size).toBeGreaterThanOrEqual(1);
+  });
+
+  it("should exercise match with Never strategy in JaccardDrain", () => {
+    const d = new JaccardDrain();
+    d.addLogMessage("check pass; user unknown"); d.addLogMessage("check pass; user Lisa");
+    const c = d.match("check pass; user Boris", MatchStrategy.Never);
+    // Never strategy does tree search first, should find match
+    expect(c).not.toBeNull();
+  });
+});
+
+describe("JaccardDrain: single-token stale cluster filter", () => {
+  it("should filter stale clusters in single-token path (L148)", () => {
+    // maxClusters=1: when cluster 1 is evicted by cluster 2,
+    // adding a single-token message to the same root key should
+    // filter out the stale cluster 1 ID before adding the new one.
+    const d = new JaccardDrain({ maxClusters: 1, depth: 6 });
+    // First single-token message creates cluster 1 under root key "A"
+    d.addLogMessage("A");
+    // Second single-token message with different root key "B" evicts A
+    d.addLogMessage("B");
+    // Third single-token under "A" — node's clusterIds has stale [1], filter kicks in (L148)
+    d.addLogMessage("A");
+    expect(d.idToCluster.size).toBe(1);
+  });
+});
