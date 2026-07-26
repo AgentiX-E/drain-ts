@@ -1,4 +1,4 @@
-import type { AbstractAbstractMaskingInstruction } from "./AbstractMaskingInstruction.js";
+import type { AbstractMaskingInstruction } from "./MaskingInstruction.js";
 
 /**
  * LogMasker — applies masking instructions to log messages before clustering.

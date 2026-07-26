@@ -3,6 +3,7 @@ import { JaccardDrain } from "./core/JaccardDrain.js";
 import type { DrainBase } from "./core/DrainBase.js";
 import { LogCluster } from "./core/LogCluster.js";
 import { LogMasker } from "./masker/LogMasker.js";
+import type { MaskingInstruction } from "./masker/MaskingInstruction.js";
 import { TemplateMinerConfig } from "./TemplateMinerConfig.js";
 import { LRUCache } from "./LRUCache.js";
 import { SimpleProfiler, NullProfiler, type Profiler } from "./Profiler.js";
@@ -128,7 +129,7 @@ export class TemplateMiner {
     persistenceHandler = null,
   }: {
     config?: TemplateMinerConfig;
-    persistenceHandler?: PersistenceHandler | null;
+    persistenceHandler?: PersistenceHandler | null | undefined;
   } = {}) {
     this.config = config;
     this._persistence = persistenceHandler;
@@ -210,7 +211,7 @@ export class TemplateMiner {
    */
   static async create(options: {
     config?: TemplateMinerConfig;
-    persistenceHandler?: PersistenceHandler | null;
+    persistenceHandler?: PersistenceHandler | null | undefined;
   } = {}): Promise<TemplateMiner> {
     const miner = new TemplateMiner(options);
     if (miner.initPromise) {
@@ -462,9 +463,9 @@ export class TemplateMiner {
         if (instructions.length === 0) {
           parts.push(`(?<${paramGroupName}>.+?)`);
         } else {
-          const patterns = instructions.map((inst) =>
-            sanitizeRegexForCapture(inst.regexPattern),
-          );
+          const patterns = instructions
+            .filter((inst): inst is MaskingInstruction => "regexPattern" in inst)
+            .map((inst) => sanitizeRegexForCapture(inst.regexPattern));
           parts.push(`(?<${paramGroupName}>${patterns.join("|")})`);
         }
       } else {

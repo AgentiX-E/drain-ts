@@ -42,11 +42,8 @@
  * @module
  */
 
-import { Worker } from "node:worker_threads";
-import {
-  TemplateMiner,
-  type TemplateMinerConfig,
-} from "./TemplateMiner.js";
+import { TemplateMiner } from "./TemplateMiner.js";
+import type { TemplateMinerConfig } from "./TemplateMinerConfig.js";
 import type { AddLogResult } from "./core/types.js";
 
 /**
@@ -62,12 +59,6 @@ export interface WorkerPoolOptions {
 /**
  * Result from a single worker after processing its batch.
  */
-interface WorkerBatchResult {
-  workerId: number;
-  results: AddLogResult[];
-  clusterCount: number;
-  lineCount: number;
-}
 
 /**
  * A pool of TemplateMiner instances running in parallel.
@@ -93,10 +84,9 @@ export class WorkerPool {
   constructor(options: WorkerPoolOptions = {}) {
     const count = options.workerCount ?? Math.max(1, this._cpuCount() - 1);
     this._workers = Array.from({ length: count }, () => {
-      const miner = new TemplateMiner({
-        config: options.config,
-      });
-      return miner;
+      const minerOptions: { config?: TemplateMinerConfig } = {};
+      if (options.config) minerOptions.config = options.config;
+      return new TemplateMiner(minerOptions);
     });
 
     // Initialize result arrays
@@ -162,11 +152,6 @@ export class WorkerPool {
    * Clears accumulated results.
    */
   reset(): void {
-    for (const worker of this._workers) {
-      // Reset by creating fresh miners
-      // (TemplateMiner doesn't have a reset method, so we recreate)
-      // This is a lightweight operation since config is reused.
-    }
     for (let i = 0; i < this._workers.length; i++) {
       this._results.set(i, []);
     }

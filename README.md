@@ -219,17 +219,60 @@ pnpm benchmark     # Run Loghub 2k benchmark (all 15 datasets)
 
 ## External Persistence
 
-drain-ts ships with `FilePersistence` and `MemoryPersistence`. Implement the `PersistenceHandler` interface for any backend — Redis, Kafka, S3, PostgreSQL — in ~15 lines:
+drain-ts ships with `FilePersistence` and `MemoryPersistence`. Implement the `PersistenceHandler` interface (~15 lines) for any backend:
+
+<details>
+<summary><b>Redis (ioredis)</b></summary>
 
 ```typescript
 import type { PersistenceHandler } from "@agentix-e/drain-ts";
+import type { Redis } from "ioredis";
 
-// Redis: implements PersistenceHandler { saveState, loadState }
-// Kafka: implements PersistenceHandler { saveState, loadState }  
-// S3:    implements PersistenceHandler { saveState, loadState }
+class RedisPersistence implements PersistenceHandler {
+  constructor(private redis: Redis, private key: string) {}
+  async saveState(state: Uint8Array) { await this.redis.set(this.key, Buffer.from(state)); }
+  async loadState() { const d = await this.redis.getBuffer(this.key); return d ? new Uint8Array(d) : null; }
+}
 ```
+</details>
 
-Full examples for Redis, Kafka, and S3 are available in the [repository](https://github.com/AgentiX-E/drain-ts).
+<details>
+<summary><b>Kafka (kafkajs)</b></summary>
+
+```typescript
+import type { PersistenceHandler } from "@agentix-e/drain-ts";
+import type { Kafka, Producer } from "kafkajs";
+
+class KafkaPersistence implements PersistenceHandler {
+  private producer: Producer;
+  constructor(kafka: Kafka, private topic: string) { this.producer = kafka.producer(); }
+  async saveState(state: Uint8Array) {
+    await this.producer.connect();
+    await this.producer.send({ topic: this.topic, messages: [{ value: Buffer.from(state) }] });
+    await this.producer.disconnect();
+  }
+  async loadState(): Promise<Uint8Array | null> { /* poll last message from topic */ return null; }
+}
+```
+</details>
+
+<details>
+<summary><b>S3 (@aws-sdk/client-s3)</b></summary>
+
+```typescript
+import type { PersistenceHandler } from "@agentix-e/drain-ts";
+import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+
+class S3Persistence implements PersistenceHandler {
+  constructor(private s3: S3Client, private bucket: string, private key: string) {}
+  async saveState(state: Uint8Array) { await this.s3.send(new PutObjectCommand({ Bucket: this.bucket, Key: this.key, Body: state })); }
+  async loadState() {
+    try { const r = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: this.key })); return await r.Body?.transformToByteArray() ?? null; }
+    catch { return null; }
+  }
+}
+```
+</details>
 
 ## License
 

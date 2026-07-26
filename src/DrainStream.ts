@@ -24,12 +24,9 @@
  */
 
 import { Transform, type TransformCallback } from "node:stream";
-import {
-  TemplateMiner,
-  type TemplateMinerConfig,
-} from "./TemplateMiner.js";
+import { TemplateMiner } from "./TemplateMiner.js";
+import type { TemplateMinerConfig } from "./TemplateMinerConfig.js";
 import type { PersistenceHandler } from "./persistence/PersistenceHandler.js";
-import type { AddLogResult } from "./core/types.js";
 
 /**
  * Options for `DrainStream`.
@@ -86,10 +83,11 @@ export class DrainStream extends Transform {
       writableObjectMode: false, // always accept Buffer/string input
     });
 
-    this._miner = new TemplateMiner({
-      config: options.config,
+    const minerOpts: { config?: TemplateMinerConfig; persistenceHandler?: PersistenceHandler | null } = {
       persistenceHandler: options.persistenceHandler ?? null,
-    });
+    };
+    if (options.config) minerOpts.config = options.config;
+    this._miner = new TemplateMiner(minerOpts);
   }
 
   /**
@@ -118,7 +116,7 @@ export class DrainStream extends Transform {
   // Transform implementation
   // ============================================================
 
-  _transform(
+  override _transform(
     chunk: Buffer | string,
     _encoding: BufferEncoding,
     callback: TransformCallback,
@@ -147,7 +145,7 @@ export class DrainStream extends Transform {
     }
   }
 
-  _flush(callback: TransformCallback): void {
+  override _flush(callback: TransformCallback): void {
     try {
       // Process any remaining partial line
       const trimmed = this._buffer.trim();
@@ -172,5 +170,8 @@ export function createDrainStream(
   config?: TemplateMinerConfig,
   persistenceHandler?: PersistenceHandler | null,
 ): DrainStream {
-  return new DrainStream({ config, persistenceHandler });
+  const opts: DrainStreamOptions = {};
+  if (config) opts.config = config;
+  if (persistenceHandler !== undefined) opts.persistenceHandler = persistenceHandler;
+  return new DrainStream(opts);
 }
