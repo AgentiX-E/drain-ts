@@ -1,7 +1,7 @@
 import { DrainBase } from "./DrainBase.js";
 import { LogCluster } from "./LogCluster.js";
 import { Node } from "./Node.js";
-import { ChangeType, MatchStrategy } from "./types.js";
+import { MatchStrategy } from "./types.js";
 import type { DrainOptions } from "./types.js";
 
 /**
@@ -87,8 +87,8 @@ export class JaccardDrain extends DrainBase {
       // At "last token" (relative to non-first tokens) → break
       if (curNodeDepth === tokenCount - 1) break;
 
-      const children = curNode.keyToChildNode;
-      const exactNode = children.get(token);
+      const children: Map<string, Node> = curNode.keyToChildNode;
+      const exactNode: Node | undefined = children.get(token);
 
       if (exactNode) {
         curNode = exactNode;
@@ -103,7 +103,7 @@ export class JaccardDrain extends DrainBase {
       curNodeDepth++;
     }
 
-    return this.fastMatch(curNode.clusterIds, tokens, simTh, includeParams);
+    return this.fastMatch(curNode!.clusterIds, tokens, simTh, includeParams);
   }
 
   // ============================================================

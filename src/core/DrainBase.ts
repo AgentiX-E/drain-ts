@@ -351,7 +351,7 @@ export abstract class DrainBase {
       if (
         newTemplateTokens.length === matchCluster.logTemplateTokens.length &&
         newTemplateTokens.every(
-          (t, i) => t === matchCluster.logTemplateTokens[i],
+          (t, i) => t === matchCluster!.logTemplateTokens[i],
         )
       ) {
         changeType = ChangeType.None;

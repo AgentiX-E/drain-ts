@@ -1,4 +1,5 @@
 import type { MaskingInstruction } from "./masker/MaskingInstruction.js";
+import { MaskingInstruction as MaskingInstructionClass } from "./masker/MaskingInstruction.js";
 
 /**
  * Configuration object for TemplateMiner.
@@ -115,5 +116,163 @@ export class TemplateMinerConfig {
       }
     }
     return config;
+  }
+
+  // ===================== INI file support =====================
+
+  /**
+   * Loads configuration from a Drain3-compatible ini file.
+   *
+   * Parses the standard [DRAIN], [MASKING], [SNAPSHOT], and [PROFILING]
+   * sections with the same key names and value formats as Drain3's
+   * configparser-based ini loader.
+   *
+   * @param content - Raw ini file content (UTF-8).
+   * @returns A new TemplateMinerConfig with ini values applied.
+   *
+   * @example
+   * ```typescript
+   * import { readFileSync } from "node:fs";
+   * const ini = readFileSync("drain3.ini", "utf-8");
+   * const config = TemplateMinerConfig.fromIni(ini);
+   * ```
+   */
+  static fromIni(content: string): TemplateMinerConfig {
+    const config = new TemplateMinerConfig();
+    const sections = parseIni(content);
+
+    // [DRAIN]
+    const drain = sections["DRAIN"] ?? sections["drain"] ?? {};
+    if (drain["engine"] !== undefined) {
+      config.engine = drain["engine"] as "Drain" | "JaccardDrain";
+    }
+    if (drain["sim_th"] !== undefined) config.simTh = Number(drain["sim_th"]);
+    if (drain["depth"] !== undefined) config.depth = Number(drain["depth"]);
+    if (drain["max_children"] !== undefined)
+      config.maxChildren = Number(drain["max_children"]);
+    if (drain["max_clusters"] !== undefined) {
+      const v = Number(drain["max_clusters"]);
+      config.maxClusters = Number.isNaN(v) ? null : v;
+    }
+    if (drain["extra_delimiters"] !== undefined) {
+      config.drainExtraDelimiters = parseJsonArray(drain["extra_delimiters"]) as string[];
+    }
+    if (drain["parametrize_numeric_tokens"] !== undefined) {
+      config.parametrizeNumericTokens =
+        drain["parametrize_numeric_tokens"] === "True" ||
+        drain["parametrize_numeric_tokens"] === "true";
+    }
+
+    // [MASKING]
+    const masking = sections["MASKING"] ?? sections["masking"] ?? {};
+    if (masking["masking"] !== undefined) {
+      const instructions = parseJsonArray(masking["masking"]);
+      config.maskingInstructions = (instructions as Array<{ regex_pattern: string; mask_with: string }>).map(
+        (mi) => new MaskingInstructionClass(mi.regex_pattern, mi.mask_with),
+      );
+    }
+    if (masking["mask_prefix"] !== undefined) config.maskPrefix = masking["mask_prefix"];
+    if (masking["mask_suffix"] !== undefined) config.maskSuffix = masking["mask_suffix"];
+    if (masking["parameter_extraction_cache_capacity"] !== undefined) {
+      config.parameterExtractionCacheCapacity = Number(
+        masking["parameter_extraction_cache_capacity"],
+      );
+    }
+
+    // [SNAPSHOT]
+    const snap = sections["SNAPSHOT"] ?? sections["snapshot"] ?? {};
+    if (snap["snapshot_interval_minutes"] !== undefined) {
+      config.snapshotIntervalMinutes = Number(snap["snapshot_interval_minutes"]);
+    }
+    if (snap["compress_state"] !== undefined) {
+      config.snapshotCompressState =
+        snap["compress_state"] === "True" || snap["compress_state"] === "true";
+    }
+
+    // [PROFILING]
+    const prof = sections["PROFILING"] ?? sections["profiling"] ?? {};
+    if (prof["enabled"] !== undefined) {
+      config.profilingEnabled =
+        prof["enabled"] === "True" || prof["enabled"] === "true";
+    }
+    if (prof["report_sec"] !== undefined) {
+      config.profilingReportSec = Number(prof["report_sec"]);
+    }
+
+    return config;
+  }
+}
+
+// ============================================================
+// INI parser helpers
+// ============================================================
+
+/**
+ * Parses INI content into a map of section → key-value pairs.
+ *
+ * Handles:
+ * - [Section] headers (case-insensitive)
+ * - key = value assignments
+ * - # and ; comment lines
+ * - Multi-line values (continuation via indentation)
+ * - Empty lines
+ */
+function parseIni(content: string): Record<string, Record<string, string>> {
+  const sections: Record<string, Record<string, string>> = {};
+  let currentSection: string | null = null;
+
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+
+    // Skip empty lines and comments
+    if (!line || line.startsWith("#") || line.startsWith(";")) continue;
+
+    // Section header
+    const sectionMatch = line.match(/^\[(.+)\]$/);
+    if (sectionMatch) {
+      currentSection = sectionMatch[1]!.trim();
+      if (!sections[currentSection]) {
+        sections[currentSection] = {};
+      }
+      continue;
+    }
+
+    // Key = value
+    const eqIdx = line.indexOf("=");
+    if (eqIdx > 0 && currentSection) {
+      const key = line.slice(0, eqIdx).trim();
+      let value = line.slice(eqIdx + 1).trim();
+
+      // Handle JSON array continuation (multi-line masking value)
+      if (value.startsWith("[") && !value.endsWith("]")) {
+        // Placeholder: single-line JSON arrays are supported.
+        // Multi-line JSON arrays (split across lines) are a TODO.
+      }
+      sections[currentSection]![key] = value;
+    }
+  }
+
+  return sections;
+}
+
+/**
+ * Parses a JSON array value from an INI entry.
+ *
+ * Drain3's ini format uses Python list/JSON literals for array values
+ * like `masking = [{"regex_pattern": "...", "mask_with": "IP"}]` and
+ * `extra_delimiters = ["_", ":"]`.
+ */
+function parseJsonArray(raw: string): unknown[] {
+  try {
+    // Replace Python-style True/False/None with JSON equivalents
+    const jsonSafe = raw
+      .replace(/\bTrue\b/g, "true")
+      .replace(/\bFalse\b/g, "false")
+      .replace(/\bNone\b/g, "null");
+    const parsed = JSON.parse(jsonSafe);
+    return Array.isArray(parsed) ? parsed : [parsed];
+  } catch {
+    // If parsing fails, return as single-element string array
+    return [raw];
   }
 }

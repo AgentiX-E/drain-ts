@@ -1,7 +1,7 @@
 /**
  * Profiler — performance measurement instrumentation.
  *
- * Maps 1:1 to Python Drain3 profiling system (drain3/profiler.py).
+ * Maps 1:1 to Python Drain3 profiling system (drain3/simple_profiler.py).
  *
  * The profiler tracks cumulative time and call counts for named sections
  * of the TemplateMiner processing pipeline. It is designed to have
@@ -14,13 +14,8 @@
  * Python: Profiler (abstract base class)
  */
 export interface Profiler {
-  /** Begin timing a named section. Nesting is NOT supported — each start must be matched by an end. */
   startSection(name: string): void;
-
-  /** End timing the most recently started section, or a specific named section. */
   endSection(name?: string): void;
-
-  /** Output a profiling report at the given interval (seconds). Called after each addLogMessage. */
   report(intervalSec: number): void;
 }
 
@@ -28,28 +23,78 @@ export interface Profiler {
 // NullProfiler
 // ============================================================
 
-/**
- * No-op profiler — used when profiling is disabled (default).
- *
- * Python: NullProfiler
- *
- * All methods are empty functions — zero runtime overhead beyond
- * a few no-op function calls that modern JS engines can inline away.
- */
 export class NullProfiler implements Profiler {
-  /** No-op. */
-  startSection(_name: string): void {
-    // intentionally empty
+  startSection(_name: string): void {}
+  endSection(_name?: string): void {}
+  report(_intervalSec: number): void {}
+}
+
+// ============================================================
+// ProfiledSectionStats
+// ============================================================
+
+/**
+ * Per-section cumulative timing statistics.
+ *
+ * Python: ProfiledSectionStats
+ */
+class ProfiledSectionStats {
+  sectionName: string;
+  startTimeSec: number = 0;
+  sampleCount: number = 0;
+  totalTimeSec: number = 0;
+  sampleCountBatch: number = 0;
+  totalTimeSecBatch: number = 0;
+
+  constructor(sectionName: string) {
+    this.sectionName = sectionName;
   }
 
-  /** No-op. */
-  endSection(_name?: string): void {
-    // intentionally empty
-  }
+  toString(
+    enclosingTimeSec: number,
+    includeBatchRates: boolean,
+  ): string {
+    let tookText = `${(this.totalTimeSec * 1000).toFixed(2)} ms`;
+    if (enclosingTimeSec > 0) {
+      const pct = (100 * this.totalTimeSec) / enclosingTimeSec;
+      tookText += ` (${pct.toFixed(2)}%)`;
+    }
 
-  /** No-op. */
-  report(_intervalSec: number): void {
-    // intentionally empty
+    const msPerKSamples = (
+      (1_000_000 * this.totalTimeSec) /
+      this.sampleCount
+    ).toFixed(2);
+
+    let samplesPerSec: string;
+    if (this.totalTimeSec > 0) {
+      samplesPerSec = (this.sampleCount / this.totalTimeSec).toFixed(2);
+    } else {
+      samplesPerSec = "N/A";
+    }
+
+    if (includeBatchRates) {
+      const batchMs = (
+        (1_000_000 * this.totalTimeSecBatch) /
+        this.sampleCountBatch
+      ).toFixed(2);
+      const batchHz =
+        this.totalTimeSecBatch > 0
+          ? (this.sampleCountBatch / this.totalTimeSecBatch).toFixed(2)
+          : "N/A";
+      return (
+        `${this.sectionName.padEnd(15)}: took ${tookText}, ` +
+        `${this.sampleCount.toLocaleString().padStart(10)} samples, ` +
+        `${msPerKSamples} (${batchMs}) ms / 1000 samples, ` +
+        `${samplesPerSec} (${batchHz}) hz`
+      );
+    }
+
+    return (
+      `${this.sectionName.padEnd(15)}: took ${tookText}, ` +
+      `${this.sampleCount.toLocaleString().padStart(10)} samples, ` +
+      `${msPerKSamples} ms / 1000 samples, ` +
+      `${samplesPerSec} hz`
+    );
   }
 }
 
@@ -58,78 +103,148 @@ export class NullProfiler implements Profiler {
 // ============================================================
 
 /**
- * Simple wall-clock profiler that tracks cumulative time per section.
+ * Simple wall-clock profiler with batch rate support.
  *
  * Python: SimpleProfiler
  *
- * Records start/end times for named sections and periodically outputs
- * a summary report with total time, call count, and average time.
+ * Features:
+ * - Cumulative timing per section
+ * - Batch rates (reset_after_sample_count)
+ * - Enclosing section percentage calculation
+ * - Custom printer function
+ * - Sorted descending output by total time
+ * - Hz calculation (samples/sec)
  *
- * Note: Section nesting is NOT supported. Each startSection must be
- * followed by an endSection before the next startSection.
+ * Section nesting is NOT supported. Each startSection must be
+ * followed by an endSection for the same or last section.
  */
 export class SimpleProfiler implements Profiler {
-  private readonly _sections = new Map<
-    string,
-    { totalTime: number; callCount: number }
-  >();
-  private readonly _startTimes = new Map<string, number>();
-  private _lastReportTime: number = 0;
+  private readonly _sections = new Map<string, ProfiledSectionStats>();
+  private _lastReportTimestamp: number;
+  private _lastStartedSectionName: string = "";
+  private readonly _printer: (msg: string) => void;
+  private readonly _enclosingSectionName: string;
+  private readonly _resetAfterSampleCount: number;
 
   /**
-   * Begins timing a named section.
+   * @param resetAfterSampleCount - After this many samples, reset batch counters.
+   *   Batch rates are shown in parentheses. Default: 0 (no batch reset).
+   * @param enclosingSectionName - Section name for percentage calculation (e.g. "total").
+   *   Default: "total".
+   * @param printer - Output function. Default: `console.log`.
+   */
+  constructor(
+    resetAfterSampleCount: number = 0,
+    enclosingSectionName: string = "total",
+    printer: (msg: string) => void = console.log,
+  ) {
+    this._resetAfterSampleCount = resetAfterSampleCount;
+    this._enclosingSectionName = enclosingSectionName;
+    this._printer = printer;
+    this._lastReportTimestamp = performance.now() / 1000;
+  }
+
+  /**
+   * Begin timing a named section.
    *
-   * @param name - Section identifier (e.g. "total", "mask", "drain", "save_state").
+   * Python: SimpleProfiler.start_section(section_name)
    */
   startSection(name: string): void {
-    this._startTimes.set(name, performance.now());
+    if (!name) {
+      throw new Error("Section name is empty");
+    }
+
+    this._lastStartedSectionName = name;
+
+    let section = this._sections.get(name);
+    if (!section) {
+      section = new ProfiledSectionStats(name);
+      this._sections.set(name, section);
+    }
+
+    if (section.startTimeSec !== 0) {
+      throw new Error(`Section "${name}" is already started`);
+    }
+
+    section.startTimeSec = performance.now() / 1000;
   }
 
   /**
-   * Ends timing for the most recently started section, or a named section.
+   * End timing for a section.
    *
-   * @param name - Optional section name. If omitted, ends the most recent section.
-   */
-  endSection(name?: string): void {
-    const resolvedName = name ?? this._getActiveSectionName();
-    const startTime = this._startTimes.get(resolvedName);
-    if (startTime === undefined) return;
-
-    const elapsed = performance.now() - startTime;
-    const stats = this._sections.get(resolvedName) ?? {
-      totalTime: 0,
-      callCount: 0,
-    };
-    stats.totalTime += elapsed;
-    stats.callCount += 1;
-    this._sections.set(resolvedName, stats);
-    this._startTimes.delete(resolvedName);
-  }
-
-  /**
-   * Outputs a profiling report if the specified interval has elapsed.
+   * Python: SimpleProfiler.end_section(name)
    *
-   * @param intervalSec - Minimum seconds between report outputs.
+   * @param name - Section name. If omitted, ends the last started section.
    */
-  report(intervalSec: number): void {
-    const now = performance.now();
-    if (now - this._lastReportTime < intervalSec * 1000) return;
-    this._lastReportTime = now;
+  endSection(name: string = ""): void {
+    const now = performance.now() / 1000;
+    const sectionName = name || this._lastStartedSectionName;
 
-    const lines: string[] = ["[drain-ts Profiler Report]"];
-    for (const [name, stats] of this._sections) {
-      const avgMs = (stats.totalTime / stats.callCount).toFixed(2);
-      const totalMs = stats.totalTime.toFixed(0);
-      lines.push(
-        `  ${name}: ${totalMs}ms total, ${stats.callCount} calls, avg ${avgMs}ms`,
+    if (!sectionName) {
+      throw new Error(
+        "Neither section name is specified nor a section is started",
       );
     }
-    console.log(lines.join("\n"));
+
+    const section = this._sections.get(sectionName);
+    if (!section) {
+      throw new Error(`Section "${sectionName}" does not exist`);
+    }
+
+    if (section.startTimeSec === 0) {
+      throw new Error(`Section "${sectionName}" was not started`);
+    }
+
+    const tookSec = now - section.startTimeSec;
+
+    // Reset batch counters if threshold reached (before incrementing)
+    if (
+      this._resetAfterSampleCount > 0 &&
+      section.sampleCount === this._resetAfterSampleCount
+    ) {
+      section.sampleCountBatch = 0;
+      section.totalTimeSecBatch = 0;
+    }
+
+    section.sampleCount += 1;
+    section.totalTimeSec += tookSec;
+    section.sampleCountBatch += 1;
+    section.totalTimeSecBatch += tookSec;
+    section.startTimeSec = 0;
   }
 
-  /** Returns the name of the most recently started (un-ended) section. */
-  private _getActiveSectionName(): string {
-    const keys = [...this._startTimes.keys()];
-    return keys[keys.length - 1] ?? "unknown";
+  /**
+   * Output a profiling report at the given interval.
+   *
+   * Python: SimpleProfiler.report(period_sec)
+   *
+   * @param periodSec - Minimum seconds between reports.
+   */
+  report(periodSec: number = 30): void {
+    const now = performance.now() / 1000;
+    if (now - this._lastReportTimestamp < periodSec) return;
+
+    this._lastReportTimestamp = now;
+
+    // Calculate enclosing time for percentage display
+    let enclosingTimeSec = 0;
+    if (this._enclosingSectionName) {
+      const enclosing = this._sections.get(this._enclosingSectionName);
+      if (enclosing) {
+        enclosingTimeSec = enclosing.totalTimeSec;
+      }
+    }
+
+    const includeBatchRates = this._resetAfterSampleCount > 0;
+    const sections = [...this._sections.values()];
+
+    // Sort descending by total time
+    sections.sort((a, b) => b.totalTimeSec - a.totalTimeSec);
+
+    const lines = sections.map((s) =>
+      s.toString(enclosingTimeSec, includeBatchRates),
+    );
+
+    this._printer(lines.join("\n"));
   }
 }

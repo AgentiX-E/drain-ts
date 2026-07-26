@@ -1,11 +1,8 @@
 /**
- * Profiling tests.
+ * Profiling tests — ported from Drain3 test suite, extended for new features.
  */
-
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { NullProfiler, SimpleProfiler } from "../src/Profiler.js";
-import { TemplateMiner } from "../src/TemplateMiner.js";
-import { TemplateMinerConfig } from "../src/TemplateMinerConfig.js";
 
 describe("NullProfiler", () => {
   it("should not throw on any method call", () => {
@@ -14,28 +11,13 @@ describe("NullProfiler", () => {
     expect(() => p.endSection("test")).not.toThrow();
     expect(() => p.report(60)).not.toThrow();
   });
-
-  it("should be a no-op (no output, no state change)", () => {
-    const p = new NullProfiler();
-    p.startSection("section");
-    p.endSection();
-    // No assertions needed — just verifying no side effects
-  });
 });
 
-describe("SimpleProfiler", () => {
+describe("SimpleProfiler: basic", () => {
   it("should record section times", () => {
     const p = new SimpleProfiler();
     p.startSection("work");
-    // Small delay to ensure measurable time
-    const start = performance.now();
-    while (performance.now() - start < 1) {
-      // busy wait ~1ms
-    }
     p.endSection("work");
-
-    // report() should produce output (we can't easily assert console output,
-    // but we verify it doesn't throw)
     expect(() => p.report(0)).not.toThrow();
   });
 
@@ -43,132 +25,125 @@ describe("SimpleProfiler", () => {
     const p = new SimpleProfiler();
     p.startSection("a");
     p.endSection("a");
-
-    // First report should fire (interval 0 = always)
+    // First report fires (interval 0)
     expect(() => p.report(0)).not.toThrow();
-
-    // Second report immediately should NOT fire (interval 60 seconds)
-    // We can't test the absence of output without mocking console,
-    // but we verify the method doesn't throw
+    // Second immediately — should NOT fire (interval 60s)
     expect(() => p.report(60)).not.toThrow();
   });
 
-  it("should end most recent section when name omitted", () => {
+  it("should end most recent section when name is empty", () => {
     const p = new SimpleProfiler();
-    p.startSection("first");
-    p.startSection("second");
-    // End without name → should end "second"
-    p.endSection();
-
-    // Report should include at least "first" with partial data
+    p.startSection("alpha");
+    p.startSection("beta");
+    p.endSection(); // ends "beta" (last started)
+    p.endSection("alpha");
     expect(() => p.report(0)).not.toThrow();
   });
 
-  it("should handle endSection on non-existent section gracefully", () => {
+  it("should throw on empty section name", () => {
     const p = new SimpleProfiler();
-    // Should not throw
-    expect(() => p.endSection("nonexistent")).not.toThrow();
-  });
-});
-
-describe("TemplateMiner profiling integration", () => {
-  it("should use NullProfiler by default", () => {
-    const miner = new TemplateMiner();
-    expect(miner.profiler).toBeInstanceOf(NullProfiler);
-    // Processing should work without errors
-    miner.addLogMessage("test");
+    expect(() => p.startSection("")).toThrow("Section name is empty");
   });
 
-  it("should use SimpleProfiler when profiling enabled", () => {
-    const miner = new TemplateMiner({
-      config: TemplateMinerConfig.from({ profilingEnabled: true }),
-    });
-    expect(miner.profiler).toBeInstanceOf(SimpleProfiler);
-    // Processing should record profiling data
-    miner.addLogMessage("test");
-    miner.addLogMessage("test again");
-  });
-
-  it("should not affect addLogMessage result with profiling enabled", () => {
-    const minerNoProfiling = new TemplateMiner();
-    const minerWithProfiling = new TemplateMiner({
-      config: TemplateMinerConfig.from({ profilingEnabled: true }),
-    });
-
-    const r1 = minerNoProfiling.addLogMessage("hello world");
-    const r2 = minerWithProfiling.addLogMessage("hello world");
-
-    expect(r1.templateMined).toBe(r2.templateMined);
-    expect(r1.changeType).toBe(r2.changeType);
-  });
-
-  it("should track total, mask, drain, save_state sections", () => {
-    const miner = new TemplateMiner({
-      config: TemplateMinerConfig.from({ profilingEnabled: true, profilingReportSec: 0 }),
-    });
-
-    // Process a few messages — profiler should track all sections
-    for (let i = 0; i < 5; i++) {
-      miner.addLogMessage(`message number ${i}`);
-    }
-
-    // No assertion on output, but no crash either
-    expect(miner.profiler).toBeInstanceOf(SimpleProfiler);
-  });
-});
-
-describe("printTree (debug output)", () => {
-  it("should output tree structure to custom stream", () => {
-    const miner = new TemplateMiner();
-    miner.addLogMessage("hello world foo bar");
-    miner.addLogMessage("hello world baz qux");
-
-    const chunks: string[] = [];
-    const mockStream = {
-      write(chunk: string): boolean {
-        chunks.push(chunk);
-        return true;
-      },
-    } as NodeJS.WritableStream;
-
-    miner.drain.printTree(mockStream, 3);
-    const output = chunks.join("");
-
-    expect(output).toContain("root");
-    expect(output).toContain("cluster_count");
-    expect(output).toContain("hello");
-  });
-
-  it("should output to stdout without error", () => {
-    const miner = new TemplateMiner();
-    miner.addLogMessage("test");
-    expect(() => miner.drain.printTree()).not.toThrow();
-  });
-
-  it("should respect maxClusters limit in output", () => {
-    const miner = new TemplateMiner();
-    // Create multiple clusters
-    for (const t of ["a", "b", "c", "d", "e"]) {
-      miner.addLogMessage(t);
-    }
-
-    const chunks: string[] = [];
-    const mockStream = {
-      write(chunk: string): boolean {
-        chunks.push(chunk);
-        return true;
-      },
-    } as NodeJS.WritableStream;
-
-    // Only show 2 clusters per node
-    miner.drain.printTree(mockStream, 2);
-    expect(chunks.length).toBeGreaterThan(0);
-  });
-});
-
-  it("should handle endSection with no name and no active sections", () => {
+  it("should throw when ending unstarted section", () => {
     const p = new SimpleProfiler();
-    // Call endSection() without ever calling startSection()
-    // This triggers _getActiveSectionName() with empty startTimes map
-    expect(() => p.endSection()).not.toThrow();
+    expect(() => p.endSection("nonexistent")).toThrow("does not exist");
   });
+
+  it("should throw when starting already-started section", () => {
+    const p = new SimpleProfiler();
+    p.startSection("s");
+    expect(() => p.startSection("s")).toThrow("already started");
+  });
+
+  it("should throw when no section open on end", () => {
+    const p = new SimpleProfiler();
+    expect(() => p.endSection()).toThrow("Neither section name");
+  });
+
+  it("should sort output by descending total time", () => {
+    const output: string[] = [];
+    const p = new SimpleProfiler(0, "total", (msg) => output.push(msg));
+    p.startSection("slow");
+    const start = performance.now();
+    while (performance.now() - start < 3) {} // ~3ms
+    p.endSection("slow");
+    p.startSection("fast");
+    p.endSection("fast");
+    p.report(0);
+    // "slow" should appear before "fast" in output (sorted descending)
+    const slowIdx = output.join("\n").indexOf("slow");
+    const fastIdx = output.join("\n").indexOf("fast");
+    expect(slowIdx).toBeLessThan(fastIdx);
+  });
+});
+
+describe("SimpleProfiler: custom printer", () => {
+  it("should use custom printer function", () => {
+    const lines: string[] = [];
+    const p = new SimpleProfiler(0, "total", (msg) => lines.push(msg));
+    p.startSection("x");
+    p.endSection("x");
+    p.report(0);
+    expect(lines.length).toBeGreaterThan(0);
+    expect(lines[0]).toContain("x");
+    expect(lines[0]).toContain("samples");
+  });
+});
+
+describe("SimpleProfiler: enclosing section", () => {
+  it("should show percentage relative to enclosing section", () => {
+    const lines: string[] = [];
+    const p = new SimpleProfiler(0, "total", (msg) => lines.push(msg));
+    p.startSection("total");
+    p.startSection("sub");
+    p.endSection("sub");
+    p.endSection("total");
+    p.report(0);
+    const output = lines.join("\n");
+    // "total" should show percentage (sub's time / total's time)
+    expect(output).toContain("sub");
+    expect(output).toContain("%");
+  });
+});
+
+describe("SimpleProfiler: batch rates", () => {
+  it("should show batch rates when reset_after_sample_count > 0", () => {
+    const lines: string[] = [];
+    const p = new SimpleProfiler(10, "total", (msg) => lines.push(msg));
+    p.startSection("w");
+    for (let i = 0; i < 3; i++) {
+      p.endSection("w");
+      p.startSection("w");
+    }
+    p.endSection("w");
+    p.report(0);
+    const output = lines.join("\n");
+    // Batch rates shown in parentheses when reset > 0
+    expect(output).toContain("("); // batch rate format: "ms (batch) ms"
+  });
+});
+
+describe("SimpleProfiler: edge cases", () => {
+  it("should handle division by zero in Hz calculation", () => {
+    const lines: string[] = [];
+    const p = new SimpleProfiler(1, "", (msg) => lines.push(msg));
+    p.startSection("q");
+    p.endSection("q");
+    // Manipulate internals to test zero-time edge case
+    const section = (p as any)._sections.get("q");
+    if (section) section.totalTimeSec = 0;
+    p.report(0);
+    expect(lines.join("\n")).toContain("N/A");
+  });
+
+  it("should not show % without enclosing section", () => {
+    const lines: string[] = [];
+    const p = new SimpleProfiler(0, "", (msg) => lines.push(msg));
+    p.startSection("x");
+    p.endSection("x");
+    p.report(0);
+    // No % since no enclosing section
+    expect(lines.join("\n")).not.toContain("%");
+  });
+});

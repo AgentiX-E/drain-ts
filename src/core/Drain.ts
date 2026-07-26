@@ -1,7 +1,7 @@
 import { DrainBase } from "./DrainBase.js";
 import { LogCluster } from "./LogCluster.js";
 import { Node } from "./Node.js";
-import { ChangeType, MatchStrategy } from "./types.js";
+import { MatchStrategy } from "./types.js";
 import type { DrainOptions } from "./types.js";
 
 /**
