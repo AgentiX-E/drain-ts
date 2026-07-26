@@ -1,4 +1,4 @@
-import type { MaskingInstruction } from "./masker/MaskingInstruction.js";
+import type { AbstractMaskingInstruction } from "./masker/MaskingInstruction.js";
 import { MaskingInstruction as MaskingInstructionClass } from "./masker/MaskingInstruction.js";
 
 /**
@@ -55,7 +55,7 @@ export class TemplateMinerConfig {
   // ===================== [MASKING] section =====================
 
   /** Masking instruction list. Empty by default — users opt in. */
-  maskingInstructions: readonly MaskingInstruction[] = [];
+  maskingInstructions: readonly AbstractMaskingInstruction[] = [];
 
   /** Left wrapper for masked parameters. Default: "<" */
   maskPrefix: string = "<";

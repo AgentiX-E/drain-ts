@@ -4,7 +4,7 @@
  * @module masker
  */
 
-export { MaskingInstruction } from "./MaskingInstruction.js";
+export { AbstractMaskingInstruction, MaskingInstruction } from "./MaskingInstruction.js";
 export { LogMasker } from "./LogMasker.js";
 export {
   IP_MASK,

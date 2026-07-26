@@ -195,3 +195,16 @@ describe("extractParameters (custom mask names)", () => {
     expect(params).toEqual([{ value: "admin@test.com", maskName: "EMAIL" }]);
   });
 });
+
+describe("getParameterList (deprecated)", () => {
+  it("should return parameter values only", () => {
+    const miner = new TemplateMiner();
+    miner.addLogMessage("user alice logged in from 192.168.1.1");
+    miner.addLogMessage("user bob logged in from 10.0.0.1");
+    const params = miner.getParameterList(
+      "user <*> logged in from <*>",
+      "user charlie logged in from 172.16.0.1",
+    );
+    expect(params).toEqual(["charlie", "172.16.0.1"]);
+  });
+});

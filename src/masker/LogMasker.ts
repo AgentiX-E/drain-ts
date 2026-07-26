@@ -1,4 +1,4 @@
-import type { MaskingInstruction } from "./MaskingInstruction.js";
+import type { AbstractAbstractMaskingInstruction } from "./AbstractMaskingInstruction.js";
 
 /**
  * LogMasker — applies masking instructions to log messages before clustering.
@@ -24,7 +24,7 @@ import type { MaskingInstruction } from "./MaskingInstruction.js";
 
 export class LogMasker {
   /** All masking instructions in application order. */
-  readonly instructions: readonly MaskingInstruction[];
+  readonly instructions: readonly AbstractMaskingInstruction[];
 
   /** Prefix wrapper for masked parameters (e.g. `<` in `<IP>`). */
   readonly maskPrefix: string;
@@ -35,10 +35,10 @@ export class LogMasker {
   /** Distinct mask names across all instructions. */
   readonly maskNames: readonly string[];
 
-  /** Pre-built map: maskName → MaskingInstruction[] for fast lookup. */
+  /** Pre-built map: maskName → AbstractMaskingInstruction[] for fast lookup. */
   private readonly _instructionsByName: ReadonlyMap<
     string,
-    readonly MaskingInstruction[]
+    readonly AbstractMaskingInstruction[]
   >;
 
   /**
@@ -49,7 +49,7 @@ export class LogMasker {
    * @param maskSuffix - Right delimiter for masked values. Default: `">"`.
    */
   constructor(
-    instructions: readonly MaskingInstruction[],
+    instructions: readonly AbstractMaskingInstruction[],
     maskPrefix: string = "<",
     maskSuffix: string = ">",
   ) {
@@ -58,7 +58,7 @@ export class LogMasker {
     this.maskSuffix = maskSuffix;
 
     // Build mask name → instructions map
-    const byName = new Map<string, MaskingInstruction[]>();
+    const byName = new Map<string, AbstractMaskingInstruction[]>();
     for (const inst of instructions) {
       const list = byName.get(inst.maskName);
       if (list) {
@@ -69,7 +69,7 @@ export class LogMasker {
     }
 
     // Freeze each list for immutability
-    const frozen = new Map<string, readonly MaskingInstruction[]>();
+    const frozen = new Map<string, readonly AbstractMaskingInstruction[]>();
     for (const [name, list] of byName) {
       frozen.set(name, Object.freeze([...list]));
     }
@@ -88,7 +88,7 @@ export class LogMasker {
    * @param name - The mask name to look up (e.g. "IP", "NUM").
    * @returns Frozen array of instructions, or empty array if none found.
    */
-  instructionsByMaskName(name: string): readonly MaskingInstruction[] {
+  instructionsByMaskName(name: string): readonly AbstractMaskingInstruction[] {
     return this._instructionsByName.get(name) ?? [];
   }
 
@@ -116,10 +116,7 @@ export class LogMasker {
     let result = content;
 
     for (const instruction of this.instructions) {
-      result = result.replace(
-        instruction.compiledRegex,
-        `${this.maskPrefix}${instruction.maskName}${this.maskSuffix}`,
-      );
+      result = instruction.mask(result, this.maskPrefix, this.maskSuffix);
     }
 
     return result;

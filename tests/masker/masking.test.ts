@@ -146,3 +146,32 @@ describe("MaskingInstruction", () => {
     );
   });
 });
+
+// ============================================================
+// AbstractMaskingInstruction tests
+// ============================================================
+
+import { AbstractMaskingInstruction } from "../../src/masker/MaskingInstruction.js";
+
+describe("AbstractMaskingInstruction", () => {
+  it("should support custom non-regex masking strategies", () => {
+    class CustomMasker extends AbstractMaskingInstruction {
+      mask(content: string, prefix: string, suffix: string): string {
+        return content.replace(/Alice|Bob/g, prefix + this.maskName + suffix);
+      }
+    }
+    const m = new CustomMasker("NAME");
+    expect(m.maskName).toBe("NAME");
+    expect(m.mask("Hello Alice and Bob", "<", ">")).toBe("Hello <NAME> and <NAME>");
+  });
+
+  it("should be usable in LogMasker alongside regex masks", () => {
+    class CustomMasker extends AbstractMaskingInstruction {
+      mask(content: string, prefix: string, suffix: string): string {
+        return content.replace(/@\w+/g, prefix + this.maskName + suffix);
+      }
+    }
+    const masker = new LogMasker([new CustomMasker("HANDLE")], "<", ">");
+    expect(masker.mask("user @alice and @bob")).toBe("user <HANDLE> and <HANDLE>");
+  });
+});

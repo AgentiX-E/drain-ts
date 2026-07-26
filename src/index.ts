@@ -26,6 +26,7 @@ export {
 
 // Masker exports
 export {
+  AbstractMaskingInstruction,
   MaskingInstruction,
   LogMasker,
   IP_MASK,

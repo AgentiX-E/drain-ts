@@ -1,46 +1,87 @@
 /**
- * MaskingInstruction — a regex pattern paired with a symbolic mask name.
+ * Masking instructions — patterns for detecting and replacing variable
+ * content in log messages before clustering.
  *
- * Maps 1:1 to Python `MaskingInstruction` class (drain3/masking.py).
+ * Maps 1:1 to Python drain3/masking.py:
+ * - AbstractMaskingInstruction → AbstractMaskingInstruction (ABC)
+ * - MaskingInstruction          → RegexMaskingInstruction / MaskingInstruction
  *
- * Each instruction describes how to detect and replace a specific type of
- * variable content in log messages before clustering. For example, an
- * instruction might match IPv4 addresses and replace them with `<IP>`.
- *
- * Instructions are user-configurable; drain-ts provides presets for common
- * patterns (IP, NUM, HEX, UUID, EMAIL) but ships with an empty default set.
+ * Drain3 supports pluggable masking backends via the abstract base class.
+ * drain-ts matches this: `AbstractMaskingInstruction` allows custom
+ * non-regex masking strategies (e.g., LLM-based semantic masking).
  */
 
-export class MaskingInstruction {
-  /** The raw regex pattern string (as passed to `new RegExp()`). */
-  readonly regexPattern: string;
-
-  /** Pre-compiled regex for efficient replacement during masking. */
-  readonly compiledRegex: RegExp;
-
-  /** Symbolic name used in masked output (e.g. "IP", "NUM", "UUID"). */
+/**
+ * Abstract base for masking instructions.
+ *
+ * Python: `AbstractMaskingInstruction` (drain3/masking.py L9-L22)
+ *
+ * Subclasses implement `mask()` to replace variable content with
+ * placeholder tokens. Built-in: `MaskingInstruction` (regex-based).
+ * Custom implementations can use any strategy.
+ *
+ * @example
+ * ```typescript
+ * class SemanticMasker extends AbstractMaskingInstruction {
+ *   mask(content: string, prefix: string, suffix: string): string {
+ *     // Call LLM to identify PII, replace with <PII>
+ *     return content.replace(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g, "<PERSON_NAME>");
+ *   }
+ * }
+ * ```
+ */
+export abstract class AbstractMaskingInstruction {
+  /** Symbolic name used in masked output (e.g. "IP", "NUM", "PERSON_NAME"). */
   readonly maskName: string;
 
+  constructor(maskName: string) {
+    if (!maskName || maskName.length === 0) {
+      throw new Error("AbstractMaskingInstruction: maskName must be non-empty");
+    }
+    this.maskName = maskName;
+  }
+
   /**
-   * Creates a masking instruction.
+   * Apply the masking strategy to the given content.
    *
-   * The regex pattern must use the global flag (g) replacement semantics.
-   * Capturing groups within the pattern determine which portion of the
-   * match is replaced.
-   *
-   * @param regexPattern - Regex pattern string (without enclosing slashes or flags).
-   * @param maskName - Symbolic name, used as `<NAME>` in masked output.
+   * @param content - Raw log message content.
+   * @param maskPrefix - Left delimiter for masked parameters (e.g. "<").
+   * @param maskSuffix - Right delimiter for masked parameters (e.g. ">").
+   * @returns Content with variable parts replaced by `<maskPrefix><maskName><maskSuffix>`.
+   */
+  abstract mask(content: string, maskPrefix: string, maskSuffix: string): string;
+}
+
+/**
+ * Regex-based masking instruction.
+ *
+ * Python: `MaskingInstruction` / `RegexMaskingInstruction` (drain3/masking.py L25-L38)
+ *
+ * Uses a compiled regex to find and replace variable patterns.
+ * The regex must use capturing groups to identify the portion to replace.
+ */
+export class MaskingInstruction extends AbstractMaskingInstruction {
+  /** The raw regex pattern string. */
+  readonly regexPattern: string;
+
+  /** Pre-compiled regex for efficient replacement. */
+  readonly compiledRegex: RegExp;
+
+  /**
+   * @param regexPattern - Regex pattern (without enclosing slashes or flags).
+   * @param maskName - Symbolic name, used as `<maskName>` in masked output.
    */
   constructor(regexPattern: string, maskName: string) {
+    super(maskName);
     if (!regexPattern || regexPattern.length === 0) {
       throw new Error("MaskingInstruction: regexPattern must be non-empty");
     }
-    if (!maskName || maskName.length === 0) {
-      throw new Error("MaskingInstruction: maskName must be non-empty");
-    }
-
     this.regexPattern = regexPattern;
-    this.maskName = maskName;
     this.compiledRegex = new RegExp(regexPattern, "g");
+  }
+
+  mask(content: string, maskPrefix: string, maskSuffix: string): string {
+    const replacement = maskPrefix + this.maskName + maskSuffix;
+    return content.replace(this.compiledRegex, replacement);
   }
 }

@@ -359,6 +359,21 @@ export class TemplateMiner {
     return result;
   }
 
+  /**
+   * Deprecated: use extractParameters() instead.
+   *
+   * Python: TemplateMiner.get_parameter_list(template, log_line)
+   *
+   * Extracts parameter VALUES only (no mask names) using inexact matching.
+   * Provided for compatibility with Drain3 API.
+   *
+   * @deprecated Use `extractParameters()` for full ExtractedParameter[] results.
+   */
+  getParameterList(logTemplate: string, logMessage: string): string[] {
+    const params = this.extractParameters(logTemplate, logMessage, false);
+    return params.map((p) => p.value);
+  }
+
   // ============================================================
   // Parameter extraction regex builder
   // ============================================================
