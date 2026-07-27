@@ -145,7 +145,7 @@ jobs:
           </body></html>
           HTMLEOF
 
-          # --- Index page (relative links from benchmark-report/) ---
+          # --- Index page with relative links ---
           cat > benchmark-report/index.html << 'HTMLEOF'
           <!DOCTYPE html>
           <html lang="en">
