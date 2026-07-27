@@ -434,4 +434,3 @@ export function evaluateCompact(data: CompactEvalData): EvaluationResult {
     parserClusterCount: parsedGroups.size,
   };
 }
-}
