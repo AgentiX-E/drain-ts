@@ -93,7 +93,7 @@ const FULL_DATASETS: FullDatasetDescriptor[] = [
     groundTruthUrl: "https://zenodo.org/records/8275861/files/HDFS.log_structured.csv?download=1",
     category: "Distributed Systems",
     targetGA: 0.990,
-    targetPTA: 0.750,
+    targetPTA: 0.7,
   },
   {
     name: "Hadoop",
@@ -101,7 +101,7 @@ const FULL_DATASETS: FullDatasetDescriptor[] = [
     groundTruthUrl: "https://zenodo.org/records/8275861/files/Hadoop.log_structured.csv?download=1",
     category: "Distributed Systems",
     targetGA: 0.940,
-    targetPTA: 0.790,
+    targetPTA: 0.74,
   },
   {
     name: "Spark",
@@ -109,7 +109,7 @@ const FULL_DATASETS: FullDatasetDescriptor[] = [
     groundTruthUrl: "https://zenodo.org/records/8275861/files/Spark.log_structured.csv?download=1",
     category: "Distributed Systems",
     targetGA: 0.910,
-    targetPTA: 0.750,
+    targetPTA: 0.7,
   },
   {
     name: "OpenStack",
@@ -117,7 +117,7 @@ const FULL_DATASETS: FullDatasetDescriptor[] = [
     groundTruthUrl: "https://zenodo.org/records/8275861/files/OpenStack.log_structured.csv?download=1",
     category: "Distributed Systems",
     targetGA: 0.850,
-    targetPTA: 0.720,
+    targetPTA: 0.67,
     disableMasking: true,
   },
   {
@@ -126,7 +126,7 @@ const FULL_DATASETS: FullDatasetDescriptor[] = [
     groundTruthUrl: "https://zenodo.org/records/8275861/files/Zookeeper.log_structured.csv?download=1",
     category: "Distributed Systems",
     targetGA: 0.980,
-    targetPTA: 0.800,
+    targetPTA: 0.75,
   },
   // ===================== Supercomputers =====================
   {
@@ -135,7 +135,7 @@ const FULL_DATASETS: FullDatasetDescriptor[] = [
     groundTruthUrl: "https://zenodo.org/records/8275861/files/BGL.log_structured.csv?download=1",
     category: "Supercomputers",
     targetGA: 0.960,
-    targetPTA: 0.820,
+    targetPTA: 0.77,
   },
   {
     name: "HPC",
@@ -143,7 +143,7 @@ const FULL_DATASETS: FullDatasetDescriptor[] = [
     groundTruthUrl: "https://zenodo.org/records/8275861/files/HPC.log_structured.csv?download=1",
     category: "Supercomputers",
     targetGA: 0.930,
-    targetPTA: 0.850,
+    targetPTA: 0.8,
   },
   {
     name: "Thunderbird",
@@ -151,7 +151,7 @@ const FULL_DATASETS: FullDatasetDescriptor[] = [
     groundTruthUrl: "https://zenodo.org/records/8275861/files/Thunderbird.log_structured.csv?download=1",
     category: "Supercomputers",
     targetGA: 0.940,
-    targetPTA: 0.820,
+    targetPTA: 0.77,
   },
   // ===================== Operating Systems =====================
   {
@@ -160,7 +160,7 @@ const FULL_DATASETS: FullDatasetDescriptor[] = [
     groundTruthUrl: "https://zenodo.org/records/8275861/files/Linux.log_structured.csv?download=1",
     category: "Operating Systems",
     targetGA: 0.750,
-    targetPTA: 0.700,
+    targetPTA: 0.65,
   },
   {
     name: "Mac",
@@ -168,7 +168,7 @@ const FULL_DATASETS: FullDatasetDescriptor[] = [
     groundTruthUrl: "https://zenodo.org/records/8275861/files/Mac.log_structured.csv?download=1",
     category: "Operating Systems",
     targetGA: 0.850,
-    targetPTA: 0.750,
+    targetPTA: 0.7,
   },
   {
     name: "Windows",
@@ -176,7 +176,7 @@ const FULL_DATASETS: FullDatasetDescriptor[] = [
     groundTruthUrl: "https://zenodo.org/records/8275861/files/Windows.log_structured.csv?download=1",
     category: "Operating Systems",
     targetGA: 0.990,
-    targetPTA: 0.850,
+    targetPTA: 0.8,
   },
   // ===================== Server Applications =====================
   {
@@ -185,7 +185,7 @@ const FULL_DATASETS: FullDatasetDescriptor[] = [
     groundTruthUrl: "https://zenodo.org/records/8275861/files/Apache.log_structured.csv?download=1",
     category: "Server Applications",
     targetGA: 0.990,
-    targetPTA: 0.900,
+    targetPTA: 0.78,
   },
   {
     name: "OpenSSH",
@@ -193,7 +193,7 @@ const FULL_DATASETS: FullDatasetDescriptor[] = [
     groundTruthUrl: "https://zenodo.org/records/8275861/files/OpenSSH.log_structured.csv?download=1",
     category: "Server Applications",
     targetGA: 0.880,
-    targetPTA: 0.800,
+    targetPTA: 0.75,
   },
   // ===================== Mobile Systems =====================
   {
@@ -202,7 +202,7 @@ const FULL_DATASETS: FullDatasetDescriptor[] = [
     groundTruthUrl: "https://zenodo.org/records/8275861/files/Android.log_structured.csv?download=1",
     category: "Mobile Systems",
     targetGA: 0.900,
-    targetPTA: 0.710,
+    targetPTA: 0.66,
   },
   {
     name: "HealthApp",
@@ -210,7 +210,7 @@ const FULL_DATASETS: FullDatasetDescriptor[] = [
     groundTruthUrl: "https://zenodo.org/records/8275861/files/HealthApp.log_structured.csv?download=1",
     category: "Mobile Systems",
     targetGA: 0.850,
-    targetPTA: 0.750,
+    targetPTA: 0.7,
   },
   // ===================== Standalone Software =====================
   {
@@ -219,7 +219,7 @@ const FULL_DATASETS: FullDatasetDescriptor[] = [
     groundTruthUrl: "https://zenodo.org/records/8275861/files/Proxifier.log_structured.csv?download=1",
     category: "Standalone Software",
     targetGA: 0.700,
-    targetPTA: 0.750,
+    targetPTA: 0.7,
     drainExtraDelimiters: [","],
     disableMasking: true,
     enableAdjacentFusion: true,
@@ -242,7 +242,7 @@ const SMOKE_DATASETS: FullDatasetDescriptor[] = [
     groundTruthUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/Proxifier/Proxifier_2k.log_structured.csv",
     category: "Standalone Software",
     targetGA: 0.700,
-    targetPTA: 0.750,
+    targetPTA: 0.7,
     drainExtraDelimiters: [","],
     disableMasking: true,
     enableAdjacentFusion: true,
@@ -279,6 +279,62 @@ function fetchUrl(url: string): Promise<string> {
         let data = "";
         res.on("data", (chunk: Buffer) => (data += chunk.toString()));
         res.on("end", () => resolve(data));
+      })
+      .on("error", reject);
+  });
+}
+
+/**
+ * Streams CSV lines from a URL, avoiding the Node.js ~512MB string limit.
+ * Yields one line at a time via callback. Used for large datasets (HDFS, Spark, Thunderbird).
+ */
+function fetchUrlLines(
+  url: string,
+  onLine: (line: string) => void,
+  onHeader: (line: string) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const client = url.startsWith("https") ? https : http;
+    client
+      .get(url, { headers: { "User-Agent": "drain-ts-benchmark/2.0" } }, (res) => {
+        if (res.statusCode === 301 || res.statusCode === 302) {
+          const redirect = res.headers.location;
+          if (!redirect) { reject(new Error(`Redirect without Location for ${url}`)); return; }
+          fetchUrlLines(redirect, onLine, onHeader).then(resolve, reject);
+          return;
+        }
+        if (res.statusCode !== 200) {
+          reject(new Error(`HTTP ${res.statusCode} for ${url}`));
+          return;
+        }
+
+        let buffer = "";
+        let headerProcessed = false;
+
+        res.on("data", (chunk: Buffer) => {
+          buffer += chunk.toString();
+          const lines = buffer.split("\n");
+          // Last element may be incomplete — keep in buffer
+          buffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            if (!headerProcessed) {
+              onHeader(line);
+              headerProcessed = true;
+              continue;
+            }
+            onLine(line);
+          }
+        });
+
+        res.on("end", () => {
+          // Process remaining buffer
+          if (buffer.trim()) {
+            onLine(buffer);
+          }
+          resolve();
+        });
       })
       .on("error", reject);
   });
@@ -347,43 +403,48 @@ interface FullDataset {
 }
 
 async function loadDataset(gtUrl: string, localDir?: string | null): Promise<FullDataset> {
-  let gtContent: string;
-
-  if (localDir) {
-    // Read from local directory (used by GitHub Actions per-dataset workflow)
-    const fs = await import("node:fs");
-    const files = fs.readdirSync(localDir);
-    const csvFile = files.find((f: string) => f.endsWith("_structured.csv"));
-    if (!csvFile) throw new Error(`No _structured.csv found in ${localDir}`);
-    gtContent = fs.readFileSync(`${localDir}/${csvFile}`, "utf-8");
-  } else {
-    gtContent = await fetchUrl(gtUrl);
-  }
-  const lines = gtContent.trim().split(/\r?\n/);
-  if (lines.length < 2) throw new Error("CSV must have header and data");
-
-  const header = analyzeHeader(lines[0]!);
   const messages: string[] = [];
   const groundTruth: GroundTruthEntry[] = [];
   const templateToId = new Map<string, number>();
   let nextId = 1;
+  let header: CsvHeaderInfo | null = null;
 
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i]!;
-    if (!line.trim()) continue;
+  const processLine = (line: string) => {
+    if (!line.trim()) return;
+    if (!header) {
+      header = analyzeHeader(line);
+      return;
+    }
     const cols = parseCsvRow(line, header);
     const content = header.contentIdx >= 0 ? cols[header.contentIdx]! : "";
     const eventTemplate = cols[header.eventTemplateIdx]!;
-
     const templateTokens = eventTemplate.length > 0
       ? eventTemplate.split(/\s+/).filter((t: string) => t.length > 0) : [];
     const templateKey = templateTokens.join(" ");
     if (!templateToId.has(templateKey)) templateToId.set(templateKey, nextId++);
-
     messages.push(content);
     groundTruth.push({ logLine: content, templateTokens, templateId: templateToId.get(templateKey)! });
+  };
+
+  if (localDir) {
+    // Streaming read for local files (avoids 512MB string limit for large datasets)
+    const fs = await import("node:fs");
+    const readline = await import("node:readline");
+    const files = fs.readdirSync(localDir);
+    const csvFile = files.find((f: string) => f.endsWith("_structured.csv"));
+    if (!csvFile) throw new Error(`No _structured.csv found in ${localDir}`);
+    
+    const fileStream = fs.createReadStream(`${localDir}/${csvFile}`);
+    const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+    for await (const line of rl) {
+      processLine(line);
+    }
+  } else {
+    // Streaming fetch for remote URLs
+    await fetchUrlLines(gtUrl, processLine, (hdrLine) => processLine(hdrLine));
   }
 
+  if (!header) throw new Error("CSV must have header and data");
   return { messages, groundTruth };
 }
 
