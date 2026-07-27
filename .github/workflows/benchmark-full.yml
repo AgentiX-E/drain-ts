@@ -103,7 +103,7 @@ jobs:
 
   # ─── Aggregate report ────────────────────────────────────────
   report:
-    if: always() && !cancelled()
+    if: always()
     needs:
       [Proxifier, Linux, Apache, Zookeeper, Mac, HealthApp, Hadoop,
        OpenStack, HPC, OpenSSH, BGL, Spark, HDFS, Thunderbird]
