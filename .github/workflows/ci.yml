@@ -82,6 +82,14 @@ jobs:
           name: coverage-report
           path: coverage-report
 
+      # ── Download full benchmark report ──────────────────────────────────
+      - name: Download full benchmark report
+        uses: actions/download-artifact@v4
+        with:
+          name: full-benchmark-report
+          path: benchmark-report/full
+        continue-on-error: true
+
       # ── Generate benchmark HTML reports (2k + full) ───────────────────
       - name: Generate benchmark reports
         run: |

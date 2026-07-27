@@ -12,8 +12,6 @@ on:
 permissions:
   contents: read
   actions: write
-  pages: write
-  id-token: write
 
 jobs:
   # ─── Small datasets ──────────────────────────────────────────
@@ -147,15 +145,12 @@ jobs:
             echo "</body></html>"
           } >> /tmp/pages/benchmark-report/full/index.html
 
-      - name: Upload aggregate report as Pages artifact
-        uses: actions/upload-pages-artifact@v4
+      - name: Upload aggregate report artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: benchmark-full-pages
-          path: /tmp/pages
-
-      - name: Deploy to GitHub Pages
-        id: deploy
-        uses: actions/deploy-pages@v4
+          name: full-benchmark-report
+          path: /tmp/pages/benchmark-report/full/
+          retention-days: 30
 
       - name: Deploy to Pages
         if: github.ref == 'refs/heads/master'
