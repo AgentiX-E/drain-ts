@@ -550,14 +550,8 @@ async function runDataset(ds: FullDatasetDescriptor, localDir?: string | null): 
 
   const durationMs = performance.now() - startTime;
 
-  let evalResult;
-  try {
-    evalResult = evaluateCompact(evalData);
-  } catch (e: any) {
-    process.stderr.write(`[eval crash] gtIds.len=${evalData.gtTemplateIds?.length} cIds.len=${evalData.clusterIds?.length} gtMap.size=${evalData.gtTemplateTokens?.size} pMap.size=${evalData.parsedTemplateTokens?.size}\n`);
-    process.stderr.write(`[eval crash] ${e.message}\n${e.stack}\n`);
-    throw e;
-  }
+  process.stdout.write(`\n[eval] gtIds=${gtTemplateIds?.length} cIds=${clusterIds?.length} gtMap=${templateTokensMap?.size} pMap=${parsedTemplateTokens?.size} msgs=${totalMessages}\n`);
+  const evalResult = evaluateCompact(evalData);
 
   return {
     dataset: ds.name,
