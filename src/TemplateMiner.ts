@@ -164,6 +164,7 @@ export class TemplateMiner {
       minAffixLength: config.minAffixLength,
       customRegexPatterns: config.customRegexPatterns,
       enableParamBinning: config.enableParamBinning,
+      enableMaskParamGeneralization: config.enableMaskParamGeneralization,
     });
 
     // Create the masker with the configured instructions

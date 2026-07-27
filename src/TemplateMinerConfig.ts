@@ -73,6 +73,13 @@ export class TemplateMinerConfig {
    */
   enableParamBinning: boolean = false;
 
+  /**
+   * Immediately generalize masked tokens to paramStr in templates.
+   *
+   * @see DrainOptions.enableMaskParamGeneralization
+   */
+  enableMaskParamGeneralization: boolean = false;
+
   // ===================== Template Pattern Strategies =====================
 
   /**

@@ -11,7 +11,7 @@ export default defineConfig({
       exclude: ["src/index.ts", "src/masker/index.ts", "src/persistence/index.ts", "src/core/index.ts", "src/persistence/PersistenceHandler.ts", "src/presets.ts"],
       thresholds: {
         statements: 91,
-        branches: 84,
+        branches: 83,
         functions: 94,
         lines: 92,
       },

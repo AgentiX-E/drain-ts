@@ -315,7 +315,9 @@ export class JaccardDrain extends DrainBase {
         const token1 = seq1[i]!;
         const token2 = seq2[i]!;
 
-        if (token1 === token2) {
+        if (this.enableMaskParamGeneralization && this.isMaskedParam(token1)) {
+          result.push(this.paramStr);
+        } else if (token1 === token2) {
           result.push(token2);
         } else {
           const paramResult = this.strategyChain.parameterize(

@@ -169,4 +169,18 @@ export interface DrainOptions {
    * Default: false (Drain3-compatible behavior)
    */
   readonly enableParamBinning?: boolean;
+  /**
+   * Immediately generalize masked tokens (<NUM>, <IP>, etc.) to paramStr
+   * during template creation instead of keeping them as literals.
+   *
+   * When enabled, any position containing a masked parameter token
+   * (identified by "<...>" wrapping pattern) is replaced with paramStr
+   * in the template on the first generalization pass.
+   *
+   * Use this for datasets where masking produces identical tokens
+   * that should be treated as variables (e.g., Proxifier).
+   *
+   * Default: false (Drain3-compatible — masked tokens kept as literals)
+   */
+  readonly enableMaskParamGeneralization?: boolean;
 }

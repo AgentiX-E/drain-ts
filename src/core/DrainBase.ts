@@ -62,6 +62,9 @@ export abstract class DrainBase {
   /** Whether to use (token_count, param_count) as compound root key. */
   readonly enableParamBinning: boolean;
 
+  /** Whether to generalize masked tokens to paramStr in createTemplate. */
+  readonly enableMaskParamGeneralization: boolean;
+
   // ============================================================
   // State (maps to Python DrainBase.__init__ state initialization)
   // ============================================================
@@ -103,6 +106,7 @@ export abstract class DrainBase {
     minAffixLength = 2,
     customRegexPatterns = [],
     enableParamBinning = false,
+    enableMaskParamGeneralization = false,
   }: DrainOptions = {}) {
     if (depth < 3) {
       throw new Error(`depth must be at least 3, got ${depth}`);
@@ -120,6 +124,7 @@ export abstract class DrainBase {
     this.paramStr = paramStr;
     this.parametrizeNumericTokens = parametrizeNumericTokens;
     this.enableParamBinning = enableParamBinning;
+    this.enableMaskParamGeneralization = enableMaskParamGeneralization;
 
     // Build strategy chain for template parameterization
     this.strategyChain = this.buildStrategyChain({
@@ -225,6 +230,22 @@ export abstract class DrainBase {
     }
     const pc = this.countParamTokens(tokens);
     return `${tc}#${pc}`;
+  }
+
+  /**
+   * Returns true if a token is a masked parameter (e.g., "<NUM>", "<IP>").
+   *
+   * Masked tokens are recognized by their "<...>" wrapping pattern.
+   * This is used by getSeqDistance to properly skip parameter positions
+   * during similarity comparison, rather than treating them as literals.
+   */
+  protected isMaskedParam(token: string): boolean {
+    return (
+      token.length > 2 &&
+      token.startsWith("<") &&
+      token.endsWith(">") &&
+      token !== this.paramStr
+    );
   }
 
   // ============================================================

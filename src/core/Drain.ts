@@ -321,7 +321,11 @@ export class Drain extends DrainBase {
       const token1 = seq1[i]!;
       const token2 = seq2[i]!;
 
-      if (token1 === token2) {
+      if (this.enableMaskParamGeneralization && this.isMaskedParam(token1)) {
+        // Masked parameter tokens → immediately generalize to <*>
+        // (only when enableMaskParamGeneralization is active)
+        result.push(this.paramStr);
+      } else if (token1 === token2) {
         // Exact match — keep the token
         result.push(token2);
       } else {
