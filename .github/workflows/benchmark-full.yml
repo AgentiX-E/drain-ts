@@ -122,45 +122,35 @@ jobs:
           merge-multiple: true
         continue-on-error: true
 
-      - name: Generate aggregate HTML report
+      - name: Generate aggregate report
         run: |
           mkdir -p /tmp/pages/benchmark-report/full
 
-          cat > /tmp/pages/benchmark-report/full/index.html << 'HTMLEOF'
-          <!DOCTYPE html><html lang="en">
-          <head><meta charset="UTF-8"><title>drain-ts Loghub-2.0 Full Benchmark</title>
-          <style>
-            body { font-family: monospace; background: #0d1117; color: #c9d1d9; padding: 2em; }
-            h1 { color: #58a6ff; } pre { background: #161b22; padding: 1em; border-radius: 6px; overflow-x: auto; }
-            a { color: #58a6ff; } .warn { color: #d29922; }
-          </style></head>
-          <body>
-          <h1>drain-ts Loghub-2.0 Full Benchmark Report</h1>
-          <h2>Results</h2><pre>
-          HTMLEOF
-
           COUNT=0
+          {
+            echo "<!DOCTYPE html><html lang=\"en\">"
+            echo "<head><meta charset=\"UTF-8\"><title>drain-ts Loghub-2.0 Full Benchmark</title>"
+            echo "<style>body{font-family:monospace;background:#0d1117;color:#c9d1d9;padding:2em}h1{color:#58a6ff}pre{background:#161b22;padding:1em;border-radius:6px;overflow-x:auto}a{color:#58a6ff}</style></head>"
+            echo "<body><h1>drain-ts Loghub-2.0 Full Benchmark Report</h1><pre>"
+          } > /tmp/pages/benchmark-report/full/index.html
+
           for f in /tmp/results/bench-*.txt; do
             if [ -f "$f" ]; then
               cat "$f" >> /tmp/pages/benchmark-report/full/index.html
-              echo "" >> /tmp/pages/benchmark-report/full/index.html
               COUNT=$((COUNT+1))
             fi
           done
 
-          cat >> /tmp/pages/benchmark-report/full/index.html << HTMLEOF
-          </pre>
-          <p>Datasets reported: ${COUNT} of 14</p>
-          <p><a href="https://github.com/AgentiX-E/drain-ts/actions/workflows/benchmark-full.yml">Run History</a></p>
-          </body></html>
-          HTMLEOF
+          {
+            echo "</pre><p>${COUNT} of 14 datasets reported</p>"
+            echo "<p><a href=\"https://github.com/AgentiX-E/drain-ts/actions/workflows/benchmark-full.yml\">Run History</a></p>"
+            echo "</body></html>"
+          } >> /tmp/pages/benchmark-report/full/index.html
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v6
-
-      - name: Upload Pages artifact
+      - name: Upload aggregate report as Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
+          name: benchmark-full-pages
           path: /tmp/pages
 
       - name: Deploy to GitHub Pages
