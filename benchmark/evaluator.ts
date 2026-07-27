@@ -340,16 +340,13 @@ export interface CompactEvalData {
 export function evaluateCompact(data: CompactEvalData): EvaluationResult {
   const { gtTemplateIds, clusterIds, gtTemplateTokens, parsedTemplateTokens, totalMessages } = data;
 
-  if (!totalMessages || !gtTemplateIds || !clusterIds) {
+  if (!totalMessages || !gtTemplateIds || !clusterIds || !gtTemplateTokens || !parsedTemplateTokens) {
     return {
       groupAccuracy: 1.0, f1GroupAccuracy: 1.0,
       parsingTemplateAccuracy: 1.0, f1TemplateAccuracy: 1.0,
-      totalMessages: 0, groundTruthTemplateCount: 0, parserClusterCount: 0,
+      totalMessages: totalMessages || 0, groundTruthTemplateCount: 0, parserClusterCount: 0,
     };
   }
-
-  const gtTokenMap = gtTemplateTokens ?? new Map();
-  const pTokenMap = parsedTemplateTokens ?? new Map();
 
   // ── GA / FGA ──────────────────────────────────────────────
   const gtGroups = new Map<number, Set<number>>();
@@ -405,8 +402,8 @@ export function evaluateCompact(data: CompactEvalData): EvaluationResult {
   let ftaGtTokens = 0;
 
   for (let i = 0; i < totalMessages; i++) {
-    const gtTok = gtTokenMap.get(gtTemplateIds[i]!) ?? [];
-    const pTok = pTokenMap.get(clusterIds[i]!) ?? [];
+    const gtTok = gtTemplateTokens.get(gtTemplateIds[i]!) ?? [];
+    const pTok = parsedTemplateTokens.get(clusterIds[i]!) ?? [];
     const maxLen = Math.max(gtTok.length, pTok.length);
     ptaTotalTokens += maxLen;
 
