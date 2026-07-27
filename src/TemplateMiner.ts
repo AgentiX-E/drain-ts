@@ -22,6 +22,10 @@ import {
   RegexSubstitutionNormalizer,
   TokenNormalizerPipeline,
 } from "./core/TokenNormalizer.js";
+import {
+  ClusterMergePipeline,
+  PositionDiffMergeStrategy,
+} from "./core/ClusterMergeStrategy.js";
 import * as zlib from "node:zlib";
 
 // ============================================================
@@ -94,6 +98,9 @@ export class TemplateMiner {
   /** Pre-clustering token normalization pipeline. */
   private readonly _normalizerPipeline: TokenNormalizerPipeline;
 
+  /** Post-training cluster merge pipeline. */
+  private readonly _mergePipeline: ClusterMergePipeline;
+
   /** LRU cache for parameter extraction regexes: (template, exactMatching) → compiled RegExp. */
   private readonly _extractionCache: LRUCache<string, RegExp>;
 
@@ -165,6 +172,8 @@ export class TemplateMiner {
       customRegexPatterns: config.customRegexPatterns,
       enableParamBinning: config.enableParamBinning,
       enableMaskParamGeneralization: config.enableMaskParamGeneralization,
+      enableAELSimilarity: config.enableAELSimilarity,
+      maxDiffRatio: config.maxDiffRatio,
     });
 
     // Create the masker with the configured instructions
@@ -197,6 +206,14 @@ export class TemplateMiner {
     // Phase 3: User-defined normalizers (runs last)
     for (const normalizer of config.tokenNormalizers) {
       this._normalizerPipeline.register(normalizer);
+    }
+
+    // Build the cluster merge pipeline
+    this._mergePipeline = new ClusterMergePipeline();
+    if (config.enableClusterMerge) {
+      this._mergePipeline.register(
+        new PositionDiffMergeStrategy(config.clusterMergePercent),
+      );
     }
 
     // Initialize regex caches for parameter extraction
@@ -309,6 +326,23 @@ export class TemplateMiner {
 
     // Let normalizers learn from the batch
     this._normalizerPipeline.learn(tokenized);
+  }
+
+  /**
+   * Post-training cluster merge (AEL reconcile).
+   *
+   * Applies the configured ClusterMergePipeline to merge near-identical
+   * clusters that were split during training. This is a non-destructive
+   * operation that only consolidates clusters — it never creates new ones.
+   *
+   * Call this after all addLogMessage() calls to improve Grouping Accuracy.
+   *
+   * @returns Number of clusters merged
+   */
+  mergeClusters(): number {
+    return this._mergePipeline.size > 0
+      ? this.drain.mergeClusters(this._mergePipeline)
+      : 0;
   }
 
   // ============================================================

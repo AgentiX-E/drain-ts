@@ -62,6 +62,14 @@ interface DatasetDescriptor {
   disableMasking?: boolean;
   /** Enable masked param generalization in createTemplate. */
   enableMaskParamGeneralization?: boolean;
+  /** Enable post-training cluster merge. */
+  enableClusterMerge?: boolean;
+  /** Cluster merge percent threshold. */
+  clusterMergePercent?: number;
+  /** Enable AEL-style diff-ratio similarity. */
+  enableAELSimilarity?: boolean;
+  /** Maximum diff ratio for AEL similarity. */
+  maxDiffRatio?: number;
 }
 
 /**
@@ -199,12 +207,17 @@ const DATASETS: DatasetDescriptor[] = [
     // ParametrizeNumericTokens (default) handles numbers in tree routing.
     drainExtraDelimiters: [","],
     disableMasking: true,
-    enableAdjacentFusion: true,
     regexCollapsePatterns: [
-      { regex: /<<NUM> \s*sec/g, replacement: "<NUM>:<NUM>" },
-      { regex: /\s*\(<NUM>\.<NUM>\s+KB\)/g, replacement: "" },
+      // Normalize "<1 sec" → "00:01" format (2 tokens instead of 3)
+      { regex: /<\d+\s+sec/g, replacement: "<*>:<*>" },
+      // Remove KB parentheticals
+      { regex: /\s*\(\d+\.\d+\s+KB\)/g, replacement: "" },
     ],
-    enableParamBinning: false,
+    enableAdjacentFusion: true,
+    enableAELSimilarity: true,
+    maxDiffRatio: 0.35,
+    enableClusterMerge: true,
+    clusterMergePercent: 0.4,
   },
 ];
 
@@ -512,6 +525,18 @@ async function runDataset(
       ...(ds.enableMaskParamGeneralization !== undefined
         ? { enableMaskParamGeneralization: ds.enableMaskParamGeneralization }
         : {}),
+      ...(ds.enableClusterMerge !== undefined
+        ? { enableClusterMerge: ds.enableClusterMerge }
+        : {}),
+      ...(ds.clusterMergePercent !== undefined
+        ? { clusterMergePercent: ds.clusterMergePercent }
+        : {}),
+      ...(ds.enableAELSimilarity !== undefined
+        ? { enableAELSimilarity: ds.enableAELSimilarity }
+        : {}),
+      ...(ds.maxDiffRatio !== undefined
+        ? { maxDiffRatio: ds.maxDiffRatio }
+        : {}),
       ...(ds.aelRegexSubstitution !== undefined
         ? { aelRegexSubstitution: [...ds.aelRegexSubstitution] }
         : {}),
@@ -531,6 +556,9 @@ async function runDataset(
       templateTokens: result.templateMined.split(" "),
     });
   }
+
+  // Post-training cluster merge (AEL reconcile)
+  miner.mergeClusters();
 
   const durationMs = performance.now() - startTime;
   const evalResult = evaluate(groundTruth, parsed);

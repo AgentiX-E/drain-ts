@@ -253,30 +253,13 @@ export class Drain extends DrainBase {
     seq2: readonly string[],
     includeParams: boolean,
   ): { similarity: number; paramCount: number } {
-    const len = seq1.length;
-
-    // Python: if len(seq1) == 0: return 1.0, 0
-    if (len === 0) return { similarity: 1.0, paramCount: 0 };
-
-    let simTokens = 0;
-    let paramCount = 0;
-
-    for (let i = 0; i < len; i++) {
-      const token1 = seq1[i]!;
-      const token2 = seq2[i]!;
-
-      if (token1 === this.paramStr) {
-        // Parameter placeholder → skip comparison, count as param
-        paramCount++;
-        continue;
-      }
-      if (token1 === token2) {
-        simTokens++;
-      }
-    }
-
-    const totalSim = includeParams ? simTokens + paramCount : simTokens;
-    return { similarity: totalSim / len, paramCount };
+    const result = this.similarityChain.compute(
+      seq1,
+      seq2,
+      this.paramStr,
+      includeParams,
+    );
+    return { similarity: result.similarity, paramCount: result.paramCount };
   }
 
   // ============================================================

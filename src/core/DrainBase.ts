@@ -4,6 +4,12 @@ import { LogClusterCache } from "./LogClusterCache.js";
 import { ChangeType, type MatchStrategy } from "./types.js";
 import type { DrainOptions } from "./types.js";
 import type { TemplatePatternStrategyChain } from "./TemplatePatternStrategy.js";
+import type { SimilarityStrategyChain } from "./SimilarityStrategy.js";
+import {
+  createDefaultSimilarityChain,
+  createAELSimilarityChain,
+} from "./SimilarityStrategy.js";
+import type { ClusterMergePipeline } from "./ClusterMergeStrategy.js";
 import {
   AffixPreservingStrategy,
   ExactMatchStrategy,
@@ -65,6 +71,9 @@ export abstract class DrainBase {
   /** Whether to generalize masked tokens to paramStr in createTemplate. */
   readonly enableMaskParamGeneralization: boolean;
 
+  /** Chain for computing token sequence similarity. */
+  readonly similarityChain: SimilarityStrategyChain;
+
   // ============================================================
   // State (maps to Python DrainBase.__init__ state initialization)
   // ============================================================
@@ -107,6 +116,9 @@ export abstract class DrainBase {
     customRegexPatterns = [],
     enableParamBinning = false,
     enableMaskParamGeneralization = false,
+    similarityStrategy,
+    enableAELSimilarity = false,
+    maxDiffRatio = 0.3,
   }: DrainOptions = {}) {
     if (depth < 3) {
       throw new Error(`depth must be at least 3, got ${depth}`);
@@ -125,6 +137,15 @@ export abstract class DrainBase {
     this.parametrizeNumericTokens = parametrizeNumericTokens;
     this.enableParamBinning = enableParamBinning;
     this.enableMaskParamGeneralization = enableMaskParamGeneralization;
+
+    // Build similarity chain from options
+    if (similarityStrategy) {
+      this.similarityChain = similarityStrategy;
+    } else if (enableAELSimilarity) {
+      this.similarityChain = createAELSimilarityChain(maxDiffRatio);
+    } else {
+      this.similarityChain = createDefaultSimilarityChain();
+    }
 
     // Build strategy chain for template parameterization
     this.strategyChain = this.buildStrategyChain({
@@ -246,6 +267,21 @@ export abstract class DrainBase {
       token.endsWith(">") &&
       token !== this.paramStr
     );
+  }
+
+  /**
+   * Post-training cluster merge using the configured merge pipeline.
+   *
+   * Applies all registered ClusterMergeStrategies iteratively until
+   * convergence. This is the drain-ts equivalent of AEL's reconcile()
+   * mechanism, which gives AEL its 0.974 GA on Proxifier.
+   *
+   * @param pipeline - Merge pipeline to use (defaults to new empty pipeline)
+   * @returns Number of merges performed
+   */
+  mergeClusters(pipeline?: ClusterMergePipeline): number {
+    if (!pipeline || pipeline.size === 0) return 0;
+    return pipeline.merge(this);
   }
 
   // ============================================================

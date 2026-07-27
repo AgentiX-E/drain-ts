@@ -80,6 +80,38 @@ export class TemplateMinerConfig {
    */
   enableMaskParamGeneralization: boolean = false;
 
+  /**
+   * Enable AEL-style diff-ratio similarity for clustering.
+   *
+   * @see DrainOptions.enableAELSimilarity
+   */
+  enableAELSimilarity: boolean = false;
+
+  /**
+   * Maximum diff ratio for AEL-style similarity.
+   *
+   * @see DrainOptions.maxDiffRatio
+   */
+  maxDiffRatio: number = 0.3;
+
+  /**
+   * Enable post-training cluster merge (AEL reconcile).
+   *
+   * When true, the ClusterMergePipeline is applied after all
+   * messages are processed. This merges clusters that represent
+   * the same underlying template but were split during training.
+   *
+   * Default: false
+   */
+  enableClusterMerge: boolean = false;
+
+  /**
+   * Merge percent threshold for PositionDiffMergeStrategy.
+   *
+   * Default: 0.4
+   */
+  clusterMergePercent: number = 0.4;
+
   // ===================== Template Pattern Strategies =====================
 
   /**

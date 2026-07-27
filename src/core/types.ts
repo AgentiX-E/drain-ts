@@ -183,4 +183,28 @@ export interface DrainOptions {
    * Default: false (Drain3-compatible — masked tokens kept as literals)
    */
   readonly enableMaskParamGeneralization?: boolean;
+  /**
+   * Custom similarity strategy chain for getSeqDistance.
+   *
+   * If provided, completely replaces the default position-wise
+   * similarity with the given chain. Use this for full control
+   * over how similarity is computed.
+   */
+  readonly similarityStrategy?: import("./SimilarityStrategy.js").SimilarityStrategyChain;
+  /**
+   * Enable AEL-style diff-ratio similarity.
+   *
+   * When true, uses DiffRatioSimilarity as the primary similarity
+   * metric instead of position-wise matching. This tolerates minor
+   * differences between sequences, enabling better clustering for
+   * datasets like Proxifier.
+   *
+   * Default: false
+   */
+  readonly enableAELSimilarity?: boolean;
+  /**
+   * Maximum diff ratio for AEL-style similarity (default: 0.3).
+   * Only used when enableAELSimilarity is true.
+   */
+  readonly maxDiffRatio?: number;
 }
