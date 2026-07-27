@@ -88,9 +88,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p benchmark-report/full
-          FULL_RUN=$(gh run list --repo AgentiX-E/drain-ts --workflow benchmark-full.yml --limit 1 --json databaseId,conclusion --jq '.[] | select(.conclusion=="success") | .databaseId' 2>/dev/null | head -1)
+          FULL_RUN=$(gh run list --repo AgentiX-E/drain-ts --workflow benchmark-full.yml --limit 1 --json databaseId,conclusion --jq '.[0].databaseId')
           if [ -n "$FULL_RUN" ]; then
-            gh run download "$FULL_RUN" --repo AgentiX-E/drain-ts --name full-benchmark-report --dir benchmark-report/full 2>/dev/null || true
+            echo "Downloading full benchmark report from run $FULL_RUN"
+            gh run download "$FULL_RUN" --repo AgentiX-E/drain-ts --name full-benchmark-report --dir /tmp/full-bench
+            cp -r /tmp/full-bench/* benchmark-report/full/ 2>/dev/null || true
+            echo "Downloaded full benchmark report"
           fi
 
       # ── Generate Loghub-2k benchmark report ─────────────────────────────
