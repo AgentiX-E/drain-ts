@@ -205,15 +205,20 @@ npx tsx benchmark/run.ts --all       # All 16 Loghub 2k datasets
 npx tsx benchmark/run.ts HDFS        # Single dataset
 ```
 
-### Loghub-2.0 Full (16 datasets × 3.6M messages avg)
+### Loghub-2.0 Full (14 datasets × up to 16.6M messages)
 
-The full Loghub-2.0 benchmark processes ~57 million messages across 16 datasets. CI runs a smoke test; run locally for complete results.
+Runs on-demand via per-dataset GitHub Actions workflows. Each dataset downloads from Zenodo and benchmarks independently.
 
 → **[View Full Benchmark →](https://agentix-e.github.io/drain-ts/benchmark-report/full/)**
+→ **[Latest Full Run →](https://github.com/AgentiX-E/drain-ts/actions/workflows/benchmark-full.yml)**
 
 ```bash
-npx tsx benchmark/run-full.ts --smoke  # 2k smoke test (CI)
-npx tsx benchmark/run-full.ts --all    # Full 57M messages (~48h, ~100GB)
+# CI (on-demand, all 14 datasets in parallel)
+gh workflow run benchmark-full.yml -f datasets=all
+
+# Run locally (requires Zenodo download)
+npx tsx benchmark/run-full.ts Proxifier --data-dir /path/to/dataset
+npx tsx benchmark/run-full.ts --all --data-dir /path/to/datasets
 ```
 
 ## API Quick Reference
