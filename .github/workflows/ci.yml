@@ -90,10 +90,9 @@ jobs:
           path: benchmark-report/full
         continue-on-error: true
 
-      # ── Generate benchmark HTML reports (2k + full) ───────────────────
-      - name: Generate benchmark reports
+      # ── Generate Loghub-2k benchmark report ─────────────────────────────
+      - name: Generate 2k benchmark report
         run: |
-          # --- Loghub-2k Benchmark ---
           npx tsx benchmark/run.ts --all 2>&1 | tee /tmp/bench-2k.txt
 
           mkdir -p benchmark-report/2k
@@ -121,37 +120,23 @@ jobs:
           </body></html>
           HTMLEOF
 
-          # --- Loghub-2.0 Full Benchmark (smoke) ---
-          npx tsx benchmark/run-full.ts --smoke 2>&1 | tee /tmp/bench-full.txt
-
-          mkdir -p benchmark-report/full
-
-          cat > benchmark-report/full/index.html << 'HTMLEOF'
-          <!DOCTYPE html>
-          <html lang="en">
+          # If full report not yet available from artifact, create placeholder
+          if [ ! -f benchmark-report/full/index.html ]; then
+            mkdir -p benchmark-report/full
+            cat > benchmark-report/full/index.html << 'HTMLEOF'
+          <!DOCTYPE html><html lang="en">
           <head><meta charset="UTF-8"><title>drain-ts Loghub-2.0 Full Benchmark</title>
           <style>
-            body { font-family: monospace; background: #0d1117; color: #c9d1d9; padding: 2em; }
-            h1 { color: #58a6ff; }
-            pre { background: #161b22; padding: 1em; border-radius: 6px; overflow-x: auto; }
-            a { color: #58a6ff; }
-            .note { background: #1f2937; padding: 1em; border-radius: 6px; border-left: 3px solid #58a6ff; }
+            body{font-family:monospace;background:#0d1117;color:#c9d1d9;padding:2em}
+            h1{color:#58a6ff}a{color:#58a6ff}
           </style></head>
           <body>
-          <h1>drain-ts Loghub-2.0 Full Dataset Benchmark</h1>
-          <div class="note">
-          <strong>Smoke test mode</strong> — CI runs a smoke test with the 2k Proxifier dataset.<br>
-          For full 3.6M-msg/dataset benchmarks, run locally with <code>npx tsx benchmark/run-full.ts --all</code>.<br>
-          Requires ~100GB storage and ~16GB RAM.
-          </div>
-          <pre>
-          HTMLEOF
-          cat /tmp/bench-full.txt >> benchmark-report/full/index.html
-          cat >> benchmark-report/full/index.html << 'HTMLEOF'
-          </pre>
-          <p><a href="../">← Back to Reports</a></p>
+          <h1>drain-ts Loghub-2.0 Full Benchmark</h1>
+          <p>Not yet available — run via <code>gh workflow run benchmark-full.yml -f datasets=all</code></p>
+          <p><a href="https://github.com/AgentiX-E/drain-ts/actions/workflows/benchmark-full.yml">Run History</a></p>
           </body></html>
           HTMLEOF
+          fi
 
           # --- Index page with relative links ---
           cat > benchmark-report/index.html << 'HTMLEOF'
