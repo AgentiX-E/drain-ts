@@ -547,6 +547,20 @@ async function runDataset(ds: FullDatasetDescriptor, localDir?: string | null): 
     evalResult = null;
   }
 
+  if (!evalResult) {
+    const count = totalMessages;
+    return {
+      dataset: ds.name,
+      category: ds.category,
+      totalMessages: count,
+      gtTemplates: 0,
+      parserClusters: 0,
+      ga: 0, fga: 0, pta: 0, fta: 0,
+      gaPass: false, ptaPass: false,
+      durationMs: performance.now() - startTime,
+    };
+  }
+
   return {
     dataset: ds.name,
     category: ds.category,
