@@ -519,69 +519,32 @@ async function runDataset(ds: FullDatasetDescriptor, localDir?: string | null): 
     }
   }
 
-  // Reconstruct parsed template tokens (one entry per cluster, not per message)
-  const parsedTemplateTokens = new Map<number, string[]>();
-  const clusterMap = miner.idToCluster;
-  for (let i = 0; i < clusterIds.length; i++) {
-    const cid = clusterIds[i];
-    if (cid == null || parsedTemplateTokens.has(cid)) continue;
-    const cluster = clusterMap.get(cid);
-    if (cluster && cluster.logTemplateTokens) {
-      parsedTemplateTokens.set(cid, [...cluster.logTemplateTokens]);
-    } else {
-      parsedTemplateTokens.set(cid, []);
-    }
-  }
-
-  // Post-training cluster merge
-  miner.mergeClusters();
-
-  // Memory-efficient evaluation: no full GroundTruthEntry[] or ParsedEntry[] arrays
-  const evalData: CompactEvalData = {
-    gtTemplateIds,
-    clusterIds,
-    gtTemplateTokens: templateTokensMap,
-    parsedTemplateTokens,
-    totalMessages: messages.length,
-  };
-
-  // Free content strings before evaluation (major memory savings)
-  (messages as unknown) = undefined;
-
-  const durationMs = performance.now() - startTime;
-
-  // Evaluate with compact evaluator
+  // Reconstruct parsed template tokens, merge, and evaluate — all guarded
   let evalResult;
   try {
-    evalResult = evaluateCompact(evalData);
-  } catch (e: any) {
-    // Fallback for large datasets: use standard evaluate() with explicit memory management
-    process.stderr.write(`[fallback] evaluateCompact failed: ${e.message}, using standard evaluate()\n`);
-    
-    // Build evaluation arrays (memory-heavy, but only used as fallback)
-    const groundTruth: any[] = []; // GroundTruthEntry[]
-    const parsed: any[] = []; // ParsedEntry[]
-    for (let i = 0; i < evalData.totalMessages; i++) {
-      const tid = evalData.gtTemplateIds[i]!;
-      const gtTokens = evalData.gtTemplateTokens.get(tid) ?? [];
-      groundTruth.push({ logLine: "", templateTokens: gtTokens, templateId: tid });
-      
-      const cid = evalData.clusterIds[i]!;
-      const pTokens = evalData.parsedTemplateTokens.get(cid) ?? [];
-      parsed.push({ clusterId: cid, templateTokens: pTokens });
+    const parsedTemplateTokens = new Map<number, string[]>();
+    const clusterMap = miner.idToCluster;
+    for (let i = 0; i < clusterIds.length; i++) {
+      const cid = clusterIds[i];
+      if (cid == null || parsedTemplateTokens.has(cid)) continue;
+      const cluster = clusterMap.get(cid);
+      parsedTemplateTokens.set(cid, (cluster && cluster.logTemplateTokens) ? [...cluster.logTemplateTokens] : []);
     }
 
-    // Free compact arrays
-    (evalData as any).gtTemplateIds = undefined;
-    (evalData as any).clusterIds = undefined;
-    (evalData as any).gtTemplateTokens = undefined;
-    (evalData as any).parsedTemplateTokens = undefined;
-    
-    if (typeof global !== "undefined" && (global as any).gc) (global as any).gc();
-    
-    // Use standard evaluate()
-    const { evaluate } = await import("./evaluator.js");
-    evalResult = evaluate(groundTruth, parsed);
+    miner.mergeClusters();
+
+    const evalData: CompactEvalData = {
+      gtTemplateIds,
+      clusterIds,
+      gtTemplateTokens: templateTokensMap,
+      parsedTemplateTokens,
+      totalMessages: messages.length,
+    };
+    (messages as unknown) = undefined;
+    evalResult = evaluateCompact(evalData);
+  } catch (e: any) {
+    process.stderr.write(`[eval] compact eval failed: ${e.message}\n`);
+    evalResult = null;
   }
 
   return {
