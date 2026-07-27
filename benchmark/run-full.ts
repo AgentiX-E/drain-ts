@@ -550,8 +550,39 @@ async function runDataset(ds: FullDatasetDescriptor, localDir?: string | null): 
 
   const durationMs = performance.now() - startTime;
 
-  process.stdout.write(`\n[eval] gtIds=${gtTemplateIds?.length} cIds=${clusterIds?.length} gtMap=${templateTokensMap?.size} pMap=${parsedTemplateTokens?.size} msgs=${totalMessages}\n`);
-  const evalResult = evaluateCompact(evalData);
+  // Evaluate with compact evaluator
+  let evalResult;
+  try {
+    evalResult = evaluateCompact(evalData);
+  } catch (e: any) {
+    // Fallback for large datasets: use standard evaluate() with explicit memory management
+    process.stderr.write(`[fallback] evaluateCompact failed: ${e.message}, using standard evaluate()\n`);
+    
+    // Build evaluation arrays (memory-heavy, but only used as fallback)
+    const groundTruth: any[] = []; // GroundTruthEntry[]
+    const parsed: any[] = []; // ParsedEntry[]
+    for (let i = 0; i < evalData.totalMessages; i++) {
+      const tid = evalData.gtTemplateIds[i]!;
+      const gtTokens = evalData.gtTemplateTokens.get(tid) ?? [];
+      groundTruth.push({ logLine: "", templateTokens: gtTokens, templateId: tid });
+      
+      const cid = evalData.clusterIds[i]!;
+      const pTokens = evalData.parsedTemplateTokens.get(cid) ?? [];
+      parsed.push({ clusterId: cid, templateTokens: pTokens });
+    }
+
+    // Free compact arrays
+    (evalData as any).gtTemplateIds = undefined;
+    (evalData as any).clusterIds = undefined;
+    (evalData as any).gtTemplateTokens = undefined;
+    (evalData as any).parsedTemplateTokens = undefined;
+    
+    if (typeof global !== "undefined" && (global as any).gc) (global as any).gc();
+    
+    // Use standard evaluate()
+    const { evaluate } = await import("./evaluator.js");
+    evalResult = evaluate(groundTruth, parsed);
+  }
 
   return {
     dataset: ds.name,
