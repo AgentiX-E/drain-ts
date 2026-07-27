@@ -141,6 +141,14 @@ const DATASETS: DatasetDescriptor[] = [
     targetPTA: 0.850,
   },
   {
+    name: "Thunderbird",
+    logUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/Thunderbird/Thunderbird_2k.log",
+    groundTruthUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/Thunderbird/Thunderbird_2k.log_structured.csv",
+    category: "Supercomputers",
+    targetGA: 0.940,
+    targetPTA: 0.820,
+  },
+  {
     name: "Linux",
     logUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/Linux/Linux_2k.log",
     groundTruthUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/Linux/Linux_2k.log_structured.csv",
