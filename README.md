@@ -6,7 +6,7 @@
 [![npm](https://img.shields.io/npm/v/@agentix-e/drain-ts?color=blue)](https://www.npmjs.com/package/@agentix-e/drain-ts)
 [![Coverage](https://img.shields.io/badge/coverage-report-blue)](https://agentix-e.github.io/drain-ts/coverage-report/)
 [![Benchmark](https://img.shields.io/badge/benchmark-Loghub%202k-blue)](https://agentix-e.github.io/drain-ts/benchmark-report/2k/)
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22-green)](https://nodejs.org/)
 [![npm downloads](https://img.shields.io/npm/dm/@agentix-e/drain-ts?color=blue)](https://www.npmjs.com/package/@agentix-e/drain-ts)
@@ -51,7 +51,7 @@ pnpm add @agentix-e/drain-ts
 | **match() inference** | ✅ 3 search strategies | ✅ 3 search strategies |
 | **extractParameters()** | ✅ | ✅ Exact + inexact matching |
 | **LRU eviction** | ✅ | ✅ Same eviction policy |
-| **Persistence** | ✅ File/Redis/Kafka | ✅ File/Memory + framework-agnostic interface |
+| **Persistence** | ✅ File/Redis/Kafka | ✅ File/Memory + plugin interface |
 | **Profiling** | ✅ | ✅ Same section names + batch rates |
 | **Streaming** | ❌ | ✅ Node.js Transform stream |
 | **Worker threads** | ❌ | ✅ WorkerPool multi-core |
@@ -59,7 +59,7 @@ pnpm add @agentix-e/drain-ts
 | **Zero deps** | ❌ Requires pip | ✅ No runtime dependencies |
 | **Type safety** | ❌ Dynamic | ✅ Full TypeScript, strict mode |
 | **Run anywhere** | Python only | Node, Deno, Bun, Browser |
-| **Benchmark CI** | ❌ | ✅ Loghub smoke test |
+| **Benchmark CI** | ❌ | ✅ Loghub 16-dataset CI + Pages |
 
 ### Performance vs Drain3
 
@@ -164,6 +164,10 @@ All parameters match Drain3 v0.9.11 defaults:
 | `maskingInstructions` | `MaskingInstruction[]` | `[]` | Regex patterns to apply before clustering |
 | `snapshotIntervalMinutes` | `number` | `1` | Minutes between periodic state snapshots |
 | `profilingEnabled` | `boolean` | `false` | Enable per-stage timing reports |
+| `enableAffixPreserving` | `boolean` | `false` | Token-level prefix/suffix param detection (e.g. "bytes<*>sent") |
+| `enableAdjacentFusion` | `boolean` | `false` | Auto-fuse adjacent constant tokens into compound tokens |
+| `enableClusterMerge` | `boolean` | `false` | Post-training cluster merge (AEL reconcile) |
+| `enableAELSimilarity` | `boolean` | `false` | Use AEL-style diff-ratio similarity instead of position-wise |
 
 ## Architecture
 
@@ -172,9 +176,13 @@ TemplateMiner (public API)
 ├── Drain (fixed-depth prefix tree clustering)
 │   ├── Node (tree nodes)
 │   ├── LogCluster (template + hit count)
-│   └── LogClusterCache (LRU eviction when maxClusters reached)
+│   ├── LogClusterCache (LRU eviction when maxClusters reached)
+│   ├── SimilarityStrategyChain (pluggable similarity: PositionWise, AEL DiffRatio, Jaccard, TermPair)
+│   ├── TemplatePatternStrategyChain (pluggable token param: ExactMatch, AffixPreserving, Regex, FullToken)
+│   └── ClusterMergePipeline (post-training AEL reconcile for cluster consolidation)
+├── TokenNormalizerPipeline (pre-clustering: RegexSubstitution, RegexCollapse, AdjacentConstantFusion)
 ├── LogMasker (pre-processing: replace variables with <PLACEHOLDER>)
-│   └── MaskingInstruction[] (IP, NUM, HEX, UUID, EMAIL presets)
+│   └── MaskingInstruction[] (IP, NUM, HEX, UUID, EMAIL, HOST_PORT, BLOCK_ID, PATH presets)
 ├── PersistenceHandler (framework-agnostic save/load interface)
 │   ├── FilePersistence (built-in, zero deps)
 │   └── MemoryPersistence (built-in, zero deps)
@@ -184,15 +192,16 @@ TemplateMiner (public API)
 
 ## Benchmark Results
 
-drain-ts is validated against all 15 [Loghub 2k](https://github.com/logpai/loghub) standard benchmark datasets using the four official metrics: GA, FGA, PTA, FTA.
+drain-ts is validated against all 16 [Loghub 2k](https://github.com/logpai/loghub) standard benchmark datasets using the four official metrics: GA, FGA, PTA, FTA.
 
-→ **[View Full Benchmark Report →](https://agentix-e.github.io/drain-ts/benchmark/)**
+→ **[View Benchmark Report →](https://agentix-e.github.io/drain-ts/benchmark-report/)**
 
-Average across all 15 datasets (GA: 0.945, PTA: 0.833, 70k–420k logs/sec). Run locally:
+Average across all 16 datasets (GA: 0.991, PTA: 0.828, 70k–420k logs/sec). Run locally:
 
 ```bash
-npx tsx benchmark/run.ts --all       # All 15 Loghub datasets
+npx tsx benchmark/run.ts --all       # All 16 Loghub 2k datasets
 npx tsx benchmark/run.ts HDFS        # Single dataset
+npx tsx benchmark/run-full.ts --all  # Full Loghub-2.0 (requires ~100GB)
 ```
 
 ## API Quick Reference
@@ -211,8 +220,8 @@ npx tsx benchmark/run.ts HDFS        # Single dataset
 git clone https://github.com/AgentiX-E/drain-ts.git
 cd drain-ts
 pnpm install
-pnpm test          # 333 tests
-pnpm test:coverage # Coverage report (enforced thresholds)
+pnpm test          # 524 tests
+pnpm test:coverage # [Coverage report](https://agentix-e.github.io/drain-ts/coverage-report/) (enforced thresholds)
 pnpm typecheck     # Strict TypeScript check
 pnpm build         # ESM + CJS output
 pnpm benchmark     # Run Loghub 2k benchmark (all 15 datasets)
