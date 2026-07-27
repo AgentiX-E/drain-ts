@@ -6,7 +6,7 @@
 [![npm](https://img.shields.io/npm/v/@agentix-e/drain-ts?color=blue)](https://www.npmjs.com/package/@agentix-e/drain-ts)
 [![Coverage](https://img.shields.io/badge/coverage-97%25-blue)](https://agentix-e.github.io/drain-ts/coverage-report/)
 [![Benchmark 2k](https://img.shields.io/badge/benchmark-Loghub%202k-blue)](https://agentix-e.github.io/drain-ts/benchmark-report/2k/)
-[![Benchmark Full](https://img.shields.io/badge/benchmark-Loghub%20full-blue)](https://github.com/AgentiX-E/drain-ts/actions/workflows/benchmark-full.yml)
+[![Benchmark Full](https://img.shields.io/badge/benchmark-Loghub%20full-blue)](https://agentix-e.github.io/drain-ts/benchmark-report/full/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22-green)](https://nodejs.org/)
@@ -209,7 +209,8 @@ npx tsx benchmark/run.ts HDFS        # Single dataset
 
 Runs on-demand via per-dataset GitHub Actions workflows. Each dataset downloads from Zenodo and benchmarks independently.
 
-→ **[View Latest Full Run →](https://github.com/AgentiX-E/drain-ts/actions/workflows/benchmark-full.yml)**
+→ **[View Full Benchmark →](https://agentix-e.github.io/drain-ts/benchmark-report/full/)**
+→ **[Latest Full Run →](https://github.com/AgentiX-E/drain-ts/actions/workflows/benchmark-full.yml)**
 
 ```bash
 # CI (on-demand, all 14 datasets in parallel)

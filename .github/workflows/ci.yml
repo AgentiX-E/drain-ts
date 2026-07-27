@@ -82,13 +82,16 @@ jobs:
           name: coverage-report
           path: coverage-report
 
-      # ── Download full benchmark report ──────────────────────────────────
+      # ── Download full benchmark report from benchmark-full workflow ────
       - name: Download full benchmark report
-        uses: actions/download-artifact@v4
-        with:
-          name: full-benchmark-report
-          path: benchmark-report/full
-        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p benchmark-report/full
+          FULL_RUN=$(gh run list --repo AgentiX-E/drain-ts --workflow benchmark-full.yml --limit 1 --json databaseId,conclusion --jq '.[] | select(.conclusion=="success") | .databaseId' 2>/dev/null | head -1)
+          if [ -n "$FULL_RUN" ]; then
+            gh run download "$FULL_RUN" --repo AgentiX-E/drain-ts --name full-benchmark-report --dir benchmark-report/full 2>/dev/null || true
+          fi
 
       # ── Generate Loghub-2k benchmark report ─────────────────────────────
       - name: Generate 2k benchmark report
