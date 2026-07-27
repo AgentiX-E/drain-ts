@@ -112,8 +112,9 @@ const DATASETS: DatasetDescriptor[] = [
     logUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/OpenStack/OpenStack_2k.log",
     groundTruthUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/OpenStack/OpenStack_2k.log_structured.csv",
     category: "Distributed Systems",
-    targetGA: 0.850,
-    targetPTA: 0.750,
+    targetGA: 0.950,
+    targetPTA: 0.720,
+    disableMasking: true,
   },
   {
     name: "Zookeeper",

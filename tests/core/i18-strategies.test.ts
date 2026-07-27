@@ -357,4 +357,77 @@ describe("ClusterMergePipeline", () => {
     const pipeline = createDefaultMergePipeline(0.4);
     expect(pipeline.size).toBe(1);
   });
+
+  it("handles non-existing cluster IDs gracefully", () => {
+    const drain = new Drain();
+    drain.addLogMessage("a b c");
+    // Delete the cluster manually
+    drain.idToCluster.clear();
+    const pipeline = new ClusterMergePipeline()
+      .register(new PositionDiffMergeStrategy(0.4));
+    expect(pipeline.merge(drain)).toBe(0);
+  });
+});
+
+// ============================================================
+// Edge Cases
+// ============================================================
+
+describe("SimilarityStrategy Edge Cases", () => {
+  it("DiffRatio with all params → 1.0", () => {
+    const s = new DiffRatioSimilarity(0.3);
+    const r = s.compute(["<*>", "<*>"], ["x", "y"], "<*>", false);
+    expect(r.similarity).toBe(1.0);
+  });
+
+  it("DiffRatio with includeParams", () => {
+    const s = new DiffRatioSimilarity(0.5);
+    const r = s.compute(["a", "b", "<*>"], ["a", "x", "<*>"], "<*>", true);
+    // diff=1/2=0.5 ≤ 0.5 → accept, sim=(1-0.5)*2/3 + 1/3 ≈ 0.667
+    expect(r.similarity).toBeGreaterThan(0.5);
+  });
+
+  it("PositionWise different lengths → 0", () => {
+    const s = new PositionWiseSimilarity();
+    const r = s.compute(["a", "b"], ["a", "b", "c"], "<*>", false);
+    expect(r.similarity).toBe(0);
+  });
+
+  it("TermPairOverlap with single token → no pairs → 0", () => {
+    const s = new TermPairOverlapSimilarity();
+    const r = s.compute(["a"], ["b"], "<*>", false);
+    expect(r.similarity).toBe(0);
+  });
+
+  it("TermPairOverlap empty after filtering → 1.0", () => {
+    const s = new TermPairOverlapSimilarity();
+    const r = s.compute(["<*>"], ["<*>"], "<*>", false);
+    expect(r.similarity).toBe(1.0);
+  });
+
+  it("chain with registerAll", () => {
+    const chain = new SimilarityStrategyChain()
+      .registerAll([new PositionWiseSimilarity(), new DiffRatioSimilarity()]);
+    expect(chain.size).toBe(2);
+  });
+});
+
+describe("ClusterMergePipeline Edge Cases", () => {
+  it("empty merge returns 0", () => {
+    const drain = new Drain();
+    const pipeline = new ClusterMergePipeline();
+    expect(pipeline.merge(drain)).toBe(0);
+  });
+
+  it("converges within max iterations", () => {
+    const drain = new Drain();
+    // Create 10 nearly identical clusters
+    for (let i = 0; i < 10; i++) {
+      drain.addLogMessage(`host${i} close sent`);
+    }
+    const pipeline = createDefaultMergePipeline(0.5);
+    pipeline.merge(drain, 100);
+    // Should converge quickly
+    expect(drain.idToCluster.size).toBeLessThan(10);
+  });
 });
