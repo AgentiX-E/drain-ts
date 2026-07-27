@@ -1,0 +1,155 @@
+name: Benchmark Full (All Datasets)
+
+on:
+  workflow_dispatch:
+    inputs:
+      datasets:
+        description: 'Dataset filter (all, or comma-separated list like Proxifier,Apache,HDFS)'
+        required: false
+        default: 'all'
+        type: string
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  # ─── Small datasets ──────────────────────────────────────────
+  Proxifier:
+    if: contains(inputs.datasets, 'all') || contains(inputs.datasets, 'Proxifier')
+    uses: ./.github/workflows/_benchmark-full.yml
+    with:
+      dataset: Proxifier
+
+  Linux:
+    if: contains(inputs.datasets, 'all') || contains(inputs.datasets, 'Linux')
+    uses: ./.github/workflows/_benchmark-full.yml
+    with:
+      dataset: Linux
+
+  Apache:
+    if: contains(inputs.datasets, 'all') || contains(inputs.datasets, 'Apache')
+    uses: ./.github/workflows/_benchmark-full.yml
+    with:
+      dataset: Apache
+
+  Zookeeper:
+    if: contains(inputs.datasets, 'all') || contains(inputs.datasets, 'Zookeeper')
+    uses: ./.github/workflows/_benchmark-full.yml
+    with:
+      dataset: Zookeeper
+
+  Mac:
+    if: contains(inputs.datasets, 'all') || contains(inputs.datasets, 'Mac')
+    uses: ./.github/workflows/_benchmark-full.yml
+    with:
+      dataset: Mac
+
+  HealthApp:
+    if: contains(inputs.datasets, 'all') || contains(inputs.datasets, 'HealthApp')
+    uses: ./.github/workflows/_benchmark-full.yml
+    with:
+      dataset: HealthApp
+
+  Hadoop:
+    if: contains(inputs.datasets, 'all') || contains(inputs.datasets, 'Hadoop')
+    uses: ./.github/workflows/_benchmark-full.yml
+    with:
+      dataset: Hadoop
+
+  # ─── Medium datasets ─────────────────────────────────────────
+  OpenStack:
+    if: contains(inputs.datasets, 'all') || contains(inputs.datasets, 'OpenStack')
+    uses: ./.github/workflows/_benchmark-full.yml
+    with:
+      dataset: OpenStack
+
+  HPC:
+    if: contains(inputs.datasets, 'all') || contains(inputs.datasets, 'HPC')
+    uses: ./.github/workflows/_benchmark-full.yml
+    with:
+      dataset: HPC
+
+  OpenSSH:
+    if: contains(inputs.datasets, 'all') || contains(inputs.datasets, 'OpenSSH')
+    uses: ./.github/workflows/_benchmark-full.yml
+    with:
+      dataset: OpenSSH
+
+  BGL:
+    if: contains(inputs.datasets, 'all') || contains(inputs.datasets, 'BGL')
+    uses: ./.github/workflows/_benchmark-full.yml
+    with:
+      dataset: BGL
+
+  # ─── Large datasets ──────────────────────────────────────────
+  Spark:
+    if: contains(inputs.datasets, 'all') || contains(inputs.datasets, 'Spark')
+    uses: ./.github/workflows/_benchmark-full.yml
+    with:
+      dataset: Spark
+
+  HDFS:
+    if: contains(inputs.datasets, 'all') || contains(inputs.datasets, 'HDFS')
+    uses: ./.github/workflows/_benchmark-full.yml
+    with:
+      dataset: HDFS
+
+  Thunderbird:
+    if: contains(inputs.datasets, 'all') || contains(inputs.datasets, 'Thunderbird')
+    uses: ./.github/workflows/_benchmark-full.yml
+    with:
+      dataset: Thunderbird
+
+  # ─── Aggregate report ────────────────────────────────────────
+  report:
+    if: always()
+    needs:
+      [Proxifier, Linux, Apache, Zookeeper, Mac, HealthApp, Hadoop,
+       OpenStack, HPC, OpenSSH, BGL, Spark, HDFS, Thunderbird]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download all benchmark artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: benchmark-full-*
+          path: /tmp/results
+          merge-multiple: true
+
+      - name: Generate aggregate HTML report
+        run: |
+          mkdir -p /tmp/pages/benchmark-report/full
+
+          cat > /tmp/pages/benchmark-report/full/index.html << 'HTMLEOF'
+          <!DOCTYPE html><html lang="en">
+          <head><meta charset="UTF-8"><title>drain-ts Loghub-2.0 Full Benchmark</title>
+          <style>
+            body { font-family: monospace; background: #0d1117; color: #c9d1d9; padding: 2em; }
+            h1 { color: #58a6ff; } pre { background: #161b22; padding: 1em; border-radius: 6px; overflow-x: auto; }
+            a { color: #58a6ff; }
+          </style></head>
+          <body>
+          <h1>drain-ts Loghub-2.0 Full Benchmark Report</h1>
+          <p>Per-dataset GitHub Actions workflows | Generated $(date -u +"%Y-%m-%d %H:%M UTC")</p>
+          <h2>Results</h2><pre>
+          HTMLEOF
+
+          for f in /tmp/results/bench-*.txt; do
+            cat "$f" >> /tmp/pages/benchmark-report/full/index.html
+            echo "" >> /tmp/pages/benchmark-report/full/index.html
+          done
+
+          cat >> /tmp/pages/benchmark-report/full/index.html << 'HTMLEOF'
+          </pre>
+          <p><small>Aggregated by GitHub Actions | <a href="https://github.com/AgentiX-E/drain-ts">Source</a></small></p>
+          </body></html>
+          HTMLEOF
+
+      - name: Deploy to Pages
+        if: github.ref == 'refs/heads/master'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: /tmp/pages

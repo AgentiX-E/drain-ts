@@ -346,8 +346,19 @@ interface FullDataset {
   groundTruth: GroundTruthEntry[];
 }
 
-async function loadDataset(gtUrl: string): Promise<FullDataset> {
-  const gtContent = await fetchUrl(gtUrl);
+async function loadDataset(gtUrl: string, localDir?: string | null): Promise<FullDataset> {
+  let gtContent: string;
+
+  if (localDir) {
+    // Read from local directory (used by GitHub Actions per-dataset workflow)
+    const fs = await import("node:fs");
+    const files = fs.readdirSync(localDir);
+    const csvFile = files.find((f: string) => f.endsWith("_structured.csv"));
+    if (!csvFile) throw new Error(`No _structured.csv found in ${localDir}`);
+    gtContent = fs.readFileSync(`${localDir}/${csvFile}`, "utf-8");
+  } else {
+    gtContent = await fetchUrl(gtUrl);
+  }
   const lines = gtContent.trim().split(/\r?\n/);
   if (lines.length < 2) throw new Error("CSV must have header and data");
 
@@ -395,8 +406,8 @@ interface BenchmarkRow {
   durationMs: number;
 }
 
-async function runDataset(ds: FullDatasetDescriptor): Promise<BenchmarkRow> {
-  const { messages, groundTruth } = await loadDataset(ds.groundTruthUrl);
+async function runDataset(ds: FullDatasetDescriptor, localDir?: string | null): Promise<BenchmarkRow> {
+  const { messages, groundTruth } = await loadDataset(ds.groundTruthUrl, localDir);
 
   const miner = new TemplateMiner({
     config: TemplateMinerConfig.from({
@@ -501,7 +512,9 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const isSmoke = args.includes("--smoke");
   const isAll = args.includes("--all");
-  const datasetArg = args.find((a) => !a.startsWith("--"));
+  const dataDirIdx = args.indexOf("--data-dir");
+  const dataDir = dataDirIdx >= 0 ? args[dataDirIdx + 1] : null;
+  const datasetArg = args.find((a) => !a.startsWith("--") && a !== dataDir);
 
   let datasetsToRun: FullDatasetDescriptor[];
 
@@ -510,7 +523,7 @@ async function main(): Promise<void> {
     datasetsToRun = SMOKE_DATASETS;
   } else if (isAll) {
     console.log("🏗️  Full dataset mode (Loghub-2.0)");
-    console.log("⚠️  WARNING: Requires ~100GB storage and ~16GB RAM. Downloads may take hours.\n");
+    console.log("⚠️  WARNING: Requires ~100GB storage and ~16GB RAM.\n");
     datasetsToRun = FULL_DATASETS;
   } else if (datasetArg) {
     datasetsToRun = FULL_DATASETS.filter(
@@ -537,7 +550,7 @@ async function main(): Promise<void> {
   for (const ds of datasetsToRun) {
     process.stdout.write(`  ${ds.name.padEnd(14)}... `);
     try {
-      const row = await runDataset(ds);
+      const row = await runDataset(ds, dataDir);
       results.push(row);
       process.stdout.write(`GA=${row.ga.toFixed(4)} clusters=${row.parserClusters}\n`);
     } catch (err) {

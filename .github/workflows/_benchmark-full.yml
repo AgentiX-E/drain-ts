@@ -1,0 +1,52 @@
+name: Benchmark Full (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      dataset:
+        required: true
+        type: string
+        description: 'Dataset name (e.g. Proxifier, HDFS, Spark)'
+      zenodo_id:
+        required: false
+        type: string
+        default: '8275861'
+        description: 'Zenodo record ID'
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      - name: Download dataset from Zenodo
+        run: |
+          mkdir -p /tmp/datasets
+          curl -L -o /tmp/datasets/${{ inputs.dataset }}.zip \
+            "https://zenodo.org/api/records/${{ inputs.zenodo_id }}/files/${{ inputs.dataset }}.zip/content"
+          unzip -o /tmp/datasets/${{ inputs.dataset }}.zip -d /tmp/datasets/
+
+      - name: Run full benchmark
+        run: |
+          npx tsx benchmark/run-full.ts ${{ inputs.dataset }} \
+            --data-dir /tmp/datasets/${{ inputs.dataset }} \
+            2>&1 | tee /tmp/bench-${{ inputs.dataset }}.txt
+
+      - name: Upload benchmark result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-full-${{ inputs.dataset }}
+          path: /tmp/bench-${{ inputs.dataset }}.txt
+          retention-days: 90
