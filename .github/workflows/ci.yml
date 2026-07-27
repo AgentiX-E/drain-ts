@@ -171,15 +171,6 @@ jobs:
           <p><small>Automated by GitHub Actions | <a href="https://github.com/AgentiX-E/drain-ts">Source</a></small></p>
           </body></html>
           HTMLEOF
-            <a href="benchmark-report/full/">Loghub-2.0 Full Benchmark (smoke test)</a>
-          </div>
-          <div class="section">
-            <h2>Coverage</h2>
-            <a href="coverage-report/">Test Coverage Report (vitest v8)</a>
-          </div>
-          <p><small>Automated by GitHub Actions | <a href="https://github.com/AgentiX-E/drain-ts">Source</a></small></p>
-          </body></html>
-          HTMLEOF
 
       # ── Deploy to GitHub Pages ─────────────────────────────────────────
       - name: Setup Pages
