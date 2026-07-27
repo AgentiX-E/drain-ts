@@ -515,11 +515,15 @@ async function runDataset(ds: FullDatasetDescriptor, localDir?: string | null): 
 
   // Reconstruct parsed template tokens (one entry per cluster, not per message)
   const parsedTemplateTokens = new Map<number, string[]>();
-  for (let i = 0; i < messages.length; i++) {
-    const cid = clusterIds[i]!;
-    if (!parsedTemplateTokens.has(cid)) {
-      const cluster = miner.idToCluster.get(cid);
-      parsedTemplateTokens.set(cid, cluster ? [...cluster.logTemplateTokens] : []);
+  const clusterMap = miner.idToCluster;
+  for (let i = 0; i < clusterIds.length; i++) {
+    const cid = clusterIds[i];
+    if (cid == null || parsedTemplateTokens.has(cid)) continue;
+    const cluster = clusterMap.get(cid);
+    if (cluster && cluster.logTemplateTokens) {
+      parsedTemplateTokens.set(cid, [...cluster.logTemplateTokens]);
+    } else {
+      parsedTemplateTokens.set(cid, []);
     }
   }
 
