@@ -398,14 +398,21 @@ function parseCsvRow(line: string, header: CsvHeaderInfo): string[] {
 // ============================================================
 
 interface FullDataset {
+  /** Content strings indexed by message position (GC'd after processing) */
   messages: string[];
-  groundTruth: GroundTruthEntry[];
+  /** GT template ID per message position */
+  gtTemplateIds: number[];
+  /** Template tokens per unique GT template ID */
+  templateTokensMap: Map<number, string[]>;
+  /** Total message count */
+  totalMessages: number;
 }
 
 async function loadDataset(gtUrl: string, localDir?: string | null): Promise<FullDataset> {
   const messages: string[] = [];
-  const groundTruth: GroundTruthEntry[] = [];
-  const templateToId = new Map<string, number>();
+  const gtTemplateIds: number[] = [];
+  const templateTokensMap = new Map<number, string[]>();
+  const templateKeyToId = new Map<string, number>();
   let nextId = 1;
   let header: CsvHeaderInfo | null = null;
 
@@ -421,31 +428,36 @@ async function loadDataset(gtUrl: string, localDir?: string | null): Promise<Ful
     const templateTokens = eventTemplate.length > 0
       ? eventTemplate.split(/\s+/).filter((t: string) => t.length > 0) : [];
     const templateKey = templateTokens.join(" ");
-    if (!templateToId.has(templateKey)) templateToId.set(templateKey, nextId++);
+
+    let tid = templateKeyToId.get(templateKey);
+    if (tid === undefined) {
+      tid = nextId++;
+      templateKeyToId.set(templateKey, tid);
+      templateTokensMap.set(tid, templateTokens);
+    }
+
     messages.push(content);
-    groundTruth.push({ logLine: content, templateTokens, templateId: templateToId.get(templateKey)! });
+    gtTemplateIds.push(tid);
   };
 
   if (localDir) {
-    // Streaming read for local files (avoids 512MB string limit for large datasets)
     const fs = await import("node:fs");
     const readline = await import("node:readline");
     const files = fs.readdirSync(localDir);
     const csvFile = files.find((f: string) => f.endsWith("_structured.csv"));
     if (!csvFile) throw new Error(`No _structured.csv found in ${localDir}`);
-    
+
     const fileStream = fs.createReadStream(`${localDir}/${csvFile}`);
     const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
     for await (const line of rl) {
       processLine(line);
     }
   } else {
-    // Streaming fetch for remote URLs
     await fetchUrlLines(gtUrl, processLine, (hdrLine) => processLine(hdrLine));
   }
 
   if (!header) throw new Error("CSV must have header and data");
-  return { messages, groundTruth };
+  return { messages, gtTemplateIds, templateTokensMap, totalMessages: messages.length };
 }
 
 // ============================================================
@@ -468,7 +480,7 @@ interface BenchmarkRow {
 }
 
 async function runDataset(ds: FullDatasetDescriptor, localDir?: string | null): Promise<BenchmarkRow> {
-  const { messages, groundTruth } = await loadDataset(ds.groundTruthUrl, localDir);
+  const { messages, gtTemplateIds, templateTokensMap, totalMessages } = await loadDataset(ds.groundTruthUrl, localDir);
 
   const miner = new TemplateMiner({
     config: TemplateMinerConfig.from({
@@ -492,12 +504,11 @@ async function runDataset(ds: FullDatasetDescriptor, localDir?: string | null): 
 
   const startTime = performance.now();
 
-  // Process all messages
-  const parsed: ParsedEntry[] = [];
+  // Process all messages — store clusterId per position (compact: number vs string)
+  const clusterIds = new Array<number>(messages.length);
   for (let i = 0; i < messages.length; i++) {
     const result = miner.addLogMessage(messages[i]!);
-    parsed.push({ clusterId: result.clusterId, templateTokens: result.templateMined.split(" ") });
-    // Progress indicator every 100k messages
+    clusterIds[i] = result.clusterId;
     if ((i + 1) % 100000 === 0) {
       process.stdout.write(`  ${i + 1}/${messages.length} (${((i + 1) / messages.length * 100).toFixed(1)}%)\r`);
     }
@@ -505,6 +516,28 @@ async function runDataset(ds: FullDatasetDescriptor, localDir?: string | null): 
 
   // Post-training cluster merge
   miner.mergeClusters();
+
+  // Reconstruct full template tokens for each message (from miner's clusters)
+  const parsed: ParsedEntry[] = new Array<ParsedEntry>(messages.length);
+  for (let i = 0; i < messages.length; i++) {
+    const cluster = miner.idToCluster.get(clusterIds[i]!);
+    parsed[i] = {
+      clusterId: clusterIds[i]!,
+      templateTokens: cluster ? [...cluster.logTemplateTokens] : [],
+    };
+  }
+
+  // Build GroundTruth from compact data
+  const groundTruth: GroundTruthEntry[] = new Array<GroundTruthEntry>(messages.length);
+  for (let i = 0; i < messages.length; i++) {
+    const tid = gtTemplateIds[i]!;
+    const tokens = templateTokensMap.get(tid) ?? [];
+    groundTruth[i] = { logLine: messages[i]!, templateTokens: tokens, templateId: tid };
+  }
+
+  // Free compact data before evaluation (to reduce peak memory)
+  (messages as unknown) = undefined;
+  (gtTemplateIds as unknown) = undefined;
 
   const durationMs = performance.now() - startTime;
   const evalResult = evaluate(groundTruth, parsed);
