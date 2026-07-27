@@ -539,7 +539,14 @@ async function runDataset(ds: FullDatasetDescriptor, localDir?: string | null): 
   (messages as unknown) = undefined;
 
   const durationMs = performance.now() - startTime;
-  const evalResult = evaluateCompact(evalData);
+
+  let evalResult;
+  try {
+    evalResult = evaluateCompact(evalData);
+  } catch (e: any) {
+    process.stderr.write(`[evaluateCompact] ${e.message}\n${e.stack}\n`);
+    throw e;
+  }
 
   return {
     dataset: ds.name,
