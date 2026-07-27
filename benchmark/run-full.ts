@@ -485,7 +485,7 @@ interface BenchmarkRow {
 }
 
 async function runDataset(ds: FullDatasetDescriptor, localDir?: string | null): Promise<BenchmarkRow> {
-  const { messages, gtTemplateIds, templateTokensMap, totalMessages } = await loadDataset(ds.groundTruthUrl, localDir);
+  let { messages, gtTemplateIds, templateTokensMap, totalMessages } = await loadDataset(ds.groundTruthUrl, localDir);
 
   const miner = new TemplateMiner({
     config: TemplateMinerConfig.from({
@@ -520,10 +520,11 @@ async function runDataset(ds: FullDatasetDescriptor, localDir?: string | null): 
   }
 
   // Reconstruct parsed template tokens, merge, and evaluate — all guarded
+  const durationMs = performance.now() - startTime;
   let evalResult;
   try {
     const parsedTemplateTokens = new Map<number, string[]>();
-    const clusterMap = miner.idToCluster;
+    const clusterMap = miner.drain.idToCluster;
     for (let i = 0; i < clusterIds.length; i++) {
       const cid = clusterIds[i];
       if (cid == null || parsedTemplateTokens.has(cid)) continue;
