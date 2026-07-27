@@ -1,11 +1,12 @@
 /**
  * Persistence module barrel exports.
  *
+ * External backends (Kafka, Redis, etc.) are implemented outside the core
+ * package via the {@link PersistenceHandler} interface.
+ *
  * @module persistence
  */
 
 export { type PersistenceHandler } from "./PersistenceHandler.js";
 export { FilePersistence } from "./FilePersistence.js";
-export { KafkaPersistence } from "./KafkaPersistence.js";
 export { MemoryPersistence } from "./MemoryPersistence.js";
-export { RedisPersistence } from "./RedisPersistence.js";
