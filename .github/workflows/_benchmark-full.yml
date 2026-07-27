@@ -39,7 +39,7 @@ jobs:
 
       - name: Run full benchmark
         run: |
-          npx tsx benchmark/run-full.ts ${{ inputs.dataset }} \
+          NODE_OPTIONS="--max-old-space-size=12288" npx tsx benchmark/run-full.ts ${{ inputs.dataset }} \
             --data-dir /tmp/datasets/${{ inputs.dataset }} \
             2>&1 | tee /tmp/bench-${{ inputs.dataset }}.txt
 
