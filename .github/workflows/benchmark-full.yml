@@ -132,7 +132,7 @@ jobs:
             echo "<body><h1>drain-ts Loghub-2.0 Full Benchmark Report</h1><pre>"
           } > /tmp/pages/benchmark-report/full/index.html
 
-          for f in /tmp/results/bench-*.txt; do
+          for f in $(find /tmp/results -name 'bench-*.txt' | sort); do
             if [ -f "$f" ]; then
               cat "$f" >> /tmp/pages/benchmark-report/full/index.html
               COUNT=$((COUNT+1))
