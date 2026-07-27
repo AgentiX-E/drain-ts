@@ -118,7 +118,6 @@ jobs:
           pattern: benchmark-full-*
           merge-multiple: true
           path: /tmp/results
-        continue-on-error: true
 
       - name: Generate aggregate report
         run: |
