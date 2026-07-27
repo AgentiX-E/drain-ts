@@ -9,7 +9,6 @@
 - **AbstractMaskingInstruction**: Pluggable masking backends (non-regex)
 - **RFC 4180 CSV parser**: Self-built, 40+ test vectors validated
 - **Playwright browser tests**: Verified Drain/JaccardDrain/masking/LRU in real Chromium
-- **Docker**: Multi-stage production image (node:22-alpine, 163MB, non-root)
 - **Dependabot**: Weekly npm ecosystem version updates
 - **INI config support**: `TemplateMinerConfig.fromIni()` for drain3.ini compatibility
 - **Benchmark CI**: HDFS smoke test in quality pipeline
@@ -34,7 +33,6 @@
 ### Security
 - Dependabot version updates (no alerts)
 - esbuild CVE GHSA-g7r4 mitigated via override
-- Docker non-root user
 
 ## [1.0.1] - Previous
 

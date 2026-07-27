@@ -57,7 +57,6 @@ pnpm add @agentix-e/drain-ts
 | **Zero deps** | ❌ Requires pip | ✅ No runtime dependencies |
 | **Type safety** | ❌ Dynamic | ✅ Full TypeScript, strict mode |
 | **Run anywhere** | Python only | Node, Deno, Bun, Browser |
-| **Docker** | ❌ | ✅ 163MB multi-stage image |
 | **Benchmark CI** | ❌ | ✅ Loghub smoke test |
 
 ### Performance vs Drain3
