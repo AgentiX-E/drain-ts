@@ -514,10 +514,7 @@ async function runDataset(ds: FullDatasetDescriptor, localDir?: string | null): 
     }
   }
 
-  // Post-training cluster merge
-  miner.mergeClusters();
-
-  // Reconstruct full template tokens for each message (from miner's clusters)
+  // Reconstruct parsed entries BEFORE mergeClusters (merge deletes clusters)
   const parsed: ParsedEntry[] = new Array<ParsedEntry>(messages.length);
   for (let i = 0; i < messages.length; i++) {
     const cluster = miner.idToCluster.get(clusterIds[i]!);
@@ -526,6 +523,9 @@ async function runDataset(ds: FullDatasetDescriptor, localDir?: string | null): 
       templateTokens: cluster ? [...cluster.logTemplateTokens] : [],
     };
   }
+
+  // Post-training cluster merge
+  miner.mergeClusters();
 
   // Build GroundTruth from compact data
   const groundTruth: GroundTruthEntry[] = new Array<GroundTruthEntry>(messages.length);
