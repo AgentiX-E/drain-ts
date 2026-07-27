@@ -87,13 +87,32 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p benchmark-report/full
-          FULL_RUN=$(gh run list --repo AgentiX-E/drain-ts --workflow benchmark-full.yml --limit 1 --json databaseId,conclusion --jq '.[0].databaseId')
+          FULL_RUN=$(gh run list --repo AgentiX-E/drain-ts --workflow benchmark-full.yml --limit 1 --json databaseId --jq '.[0].databaseId')
           if [ -n "$FULL_RUN" ]; then
-            echo "Downloading full benchmark report from run $FULL_RUN"
-            gh run download "$FULL_RUN" --repo AgentiX-E/drain-ts --name full-benchmark-report --dir /tmp/full-bench
-            cp -r /tmp/full-bench/* benchmark-report/full/ 2>/dev/null || true
-            echo "Downloaded full benchmark report"
+            echo "Downloading from run $FULL_RUN"
+            DSETS="Proxifier Linux Apache Zookeeper Mac HealthApp Hadoop OpenStack HPC OpenSSH BGL Spark HDFS Thunderbird"
+            COUNT=0
+            mkdir -p benchmark-report/full /tmp/fb-results
+            for ds in $DSETS; do
+              gh run download "$FULL_RUN" --repo AgentiX-E/drain-ts --name "benchmark-full-${ds}" --dir "/tmp/fb-results" 2>/dev/null || true
+            done
+            {
+              echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>drain-ts Loghub-2.0 Full Benchmark</title>'
+              echo '<style>body{font-family:monospace;background:#0d1117;color:#c9d1d9;padding:2em}h1{color:#58a6ff}pre{background:#161b22;padding:1em;border-radius:6px;overflow-x:auto}a{color:#58a6ff}</style></head>'
+              echo '<body><h1>drain-ts Loghub-2.0 Full Benchmark Report</h1><pre>'
+            } > benchmark-report/full/index.html
+            for f in /tmp/fb-results/bench-*.txt; do
+              [ -f "$f" ] || continue
+              cat "$f" >> benchmark-report/full/index.html
+              COUNT=$((COUNT+1))
+            done
+            { echo "</pre><p>${COUNT} of 14 datasets</p>"
+              echo '<p><a href="https://github.com/AgentiX-E/drain-ts/actions/workflows/benchmark-full.yml">Run History</a></p>'
+              echo '</body></html>'
+            } >> benchmark-report/full/index.html
+            echo "Full report: $COUNT datasets"
+          else
+            echo "No benchmark-full run yet"
           fi
 
       # ── Generate Loghub-2k benchmark report ─────────────────────────────
