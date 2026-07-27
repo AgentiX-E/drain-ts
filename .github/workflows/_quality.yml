@@ -55,29 +55,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
 
-  benchmark-smoke:
-    needs: [build]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ inputs.node_version }}
-          cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - name: Benchmark smoke test (HDFS)
-        run: |
-          npx tsx benchmark/run.ts HDFS 2>&1 | tee /tmp/bench-output.txt
-          if ! grep -q "ALL TARGETS MET" /tmp/bench-output.txt; then
-            echo "Benchmark smoke test failed!"
-            exit 1
-          fi
-
   unit-test:
     needs: [build, typecheck]
     runs-on: ubuntu-latest
@@ -94,10 +71,63 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm test:coverage
-      - name: Upload coverage artifact
+      - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage/
           retention-days: 7
+
+  benchmark-2k:
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Run Loghub-2k benchmark
+        run: |
+          npx tsx benchmark/run.ts --all 2>&1 | tee /tmp/bench-2k.txt
+          if ! grep -q "ALL TARGETS MET" /tmp/bench-2k.txt; then
+            echo "❌ Benchmark failed!"
+            exit 1
+          fi
+      - name: Upload benchmark report (2k)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-2k-report
+          path: /tmp/bench-2k.txt
+          retention-days: 7
+
+  benchmark-full-smoke:
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Run Loghub-2.0 full benchmark (smoke)
+        run: |
+          npx tsx benchmark/run-full.ts --smoke 2>&1 | tee /tmp/bench-full.txt
+          if ! grep -q "ALL TARGETS MET" /tmp/bench-full.txt; then
+            echo "❌ Full benchmark smoke test failed!"
+            exit 1
+          fi

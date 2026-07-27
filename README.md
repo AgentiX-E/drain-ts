@@ -5,7 +5,9 @@
 [![CI](https://github.com/AgentiX-E/drain-ts/actions/workflows/ci.yml/badge.svg)](https://github.com/AgentiX-E/drain-ts/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/@agentix-e/drain-ts?color=blue)](https://www.npmjs.com/package/@agentix-e/drain-ts)
 [![Coverage](https://img.shields.io/badge/coverage-report-blue)](https://agentix-e.github.io/drain-ts/coverage-report/)
-[![Benchmark](https://img.shields.io/badge/benchmark-Loghub%202k-blue)](https://agentix-e.github.io/drain-ts/benchmark-report/)
+[![Benchmark](https://img.shields.io/badge/benchmark-Loghub%202k-blue)](https://agentix-e.github.io/drain-ts/benchmark-report/2k/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22-green)](https://nodejs.org/)
 [![npm downloads](https://img.shields.io/npm/dm/@agentix-e/drain-ts?color=blue)](https://www.npmjs.com/package/@agentix-e/drain-ts)
 

@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # ─── Quality Gates (lint + typecheck + build + unit-test + coverage) ───
+  # ─── Quality Gates (lint + typecheck + build + unit-test + coverage + benchmark) ───
   quality-node22:
     uses: ./.github/workflows/_quality.yml
     with:
@@ -46,7 +46,7 @@ jobs:
       - run: pnpm test:browser
 
   # ═══════════════════════════════════════════════════════════════════════
-  # GitHub Pages — publish docs + coverage + benchmark on push to master
+  # GitHub Pages — publish coverage + benchmark reports on push to master
   # ═══════════════════════════════════════════════════════════════════════
   deploy-pages:
     if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
@@ -75,22 +75,68 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
 
-      # ── Generate benchmark report ──────────────────────────────────────
-      - name: Generate benchmark report (HDFS smoke + summary)
-        run: |
-          npx tsx benchmark/run.ts --all 2>&1 | tee /tmp/bench-full.txt
-          mkdir -p benchmark-report
-          cp /tmp/bench-full.txt benchmark-report/output.txt
-
-      # ── Download coverage artifact from quality job ───────────────────
+      # ── Download coverage artifact from quality job ────────────────────
       - name: Download coverage report
         uses: actions/download-artifact@v4
         with:
           name: coverage-report
           path: coverage-report
-        continue-on-error: true
 
-      # ── Deploy to GitHub Pages ────────────────────────────────────────
+      # ── Generate benchmark HTML report ─────────────────────────────────
+      - name: Generate benchmark HTML report
+        run: |
+          npx tsx benchmark/run.ts --all 2>&1 | tee /tmp/bench-output.txt
+
+          mkdir -p benchmark-report/2k
+
+          # Generate HTML wrapper
+          cat > benchmark-report/2k/index.html << 'HTMLEOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head><meta charset="UTF-8"><title>drain-ts Benchmark Report</title>
+          <style>
+            body { font-family: monospace; background: #0d1117; color: #c9d1d9; padding: 2em; }
+            h1 { color: #58a6ff; }
+            pre { background: #161b22; padding: 1em; border-radius: 6px; overflow-x: auto; }
+            .pass { color: #3fb950; }
+            .fail { color: #f85149; }
+            a { color: #58a6ff; }
+          </style></head>
+          <body>
+          <h1>drain-ts Loghub-2k Benchmark Report</h1>
+          <p>Generated on $(date -u +"%Y-%m-%d %H:%M UTC")</p>
+          <pre>
+          HTMLEOF
+
+          cat /tmp/bench-output.txt >> benchmark-report/2k/index.html
+
+          cat >> benchmark-report/2k/index.html << 'HTMLEOF'
+          </pre>
+          </body>
+          </html>
+          HTMLEOF
+
+          # Generate index page linking to reports
+          mkdir -p benchmark-report
+          cat > benchmark-report/index.html << 'HTMLEOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head><meta charset="UTF-8"><title>drain-ts Reports</title>
+          <style>
+            body { font-family: -apple-system, sans-serif; background: #0d1117; color: #c9d1d9; padding: 2em; }
+            h1 { color: #58a6ff; }
+            a { color: #58a6ff; display: block; margin: 0.5em 0; }
+          </style></head>
+          <body>
+          <h1>drain-ts Reports</h1>
+          <a href="2k/">Loghub-2k Benchmark</a>
+          <a href="../coverage-report/">Coverage Report</a>
+          <p><small>Automated by GitHub Actions | <a href="https://github.com/AgentiX-E/drain-ts">Source</a></small></p>
+          </body>
+          </html>
+          HTMLEOF
+
+      # ── Deploy to GitHub Pages ─────────────────────────────────────────
       - name: Setup Pages
         uses: actions/configure-pages@v6
 
