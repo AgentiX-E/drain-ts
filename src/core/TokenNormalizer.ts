@@ -183,8 +183,77 @@ export class TokenNormalizerPipeline {
 }
 
 // ============================================================
-// Built-in: Regex Token Collapse
+// Built-in: Regex Substitution (AEL-style aggressive preprocessing)
 // ============================================================
+
+/**
+ * Replaces matched patterns with a substitution string in each token.
+ *
+ * Inspired by AEL's aggressive regex preprocessing: instead of wrapping
+ * variable parts in masks, this fully REPLACES them with the paramStr.
+ * This normalizes token counts by making all parameters the same length.
+ *
+ * ## Example: AEL-style number/IP replacement
+ *
+ * Input: ["192.168.1.1", "user", "123", "logged"]
+ * Pattern: "\\d+" → replacement: "<*>"
+ * Output: ["<*>", "user", "<*>", "logged"]
+ *
+ * ## Difference from Masking
+ *
+ * Masking wraps: "192.168.1.1" → "<IP>" (token count unchanged)
+ * Substitution: "192.168.1.1" → "<*>" (token count still 1, but paramStr)
+ *
+ * The key advantage is that substitution normalizes the PARAMETER
+ * representation, making param_count tracking consistent for
+ * multi-dimension binning.
+ */
+export class RegexSubstitutionNormalizer implements TokenNormalizer {
+  readonly name = "regex-substitution";
+
+  /**
+   * @param patterns - Regex patterns and replacement strings
+   * @param replacement - Where to insert the substitution (default: "token")
+   */
+  constructor(
+    private readonly patterns: ReadonlyArray<{
+      /** Regex pattern to match in each token */
+      readonly regex: RegExp;
+      /** Replacement for matched content (use paramStr placeholder for param) */
+      readonly replacement: string;
+    }>,
+  ) {}
+
+  // Stateless — no learn phase needed
+
+  normalize(
+    tokens: readonly string[],
+    paramStr: string,
+  ): NormalizationResult {
+    const result: string[] = [];
+    const changes: string[] = [];
+
+    for (const token of tokens) {
+      let transformed = token;
+      for (const { regex, replacement } of this.patterns) {
+        const finalReplacement = replacement.replace(
+          /\$\{paramStr\}/g,
+          paramStr,
+        );
+        const before = transformed;
+        transformed = transformed.replace(regex, finalReplacement);
+        if (before !== transformed) {
+          changes.push(
+            `substituted "${before}" → "${transformed}" (pattern: ${regex.source})`,
+          );
+        }
+      }
+      result.push(transformed);
+    }
+
+    return { tokens: result, changes };
+  }
+}
 
 /**
  * Collapses adjacent token groups matching regex patterns.

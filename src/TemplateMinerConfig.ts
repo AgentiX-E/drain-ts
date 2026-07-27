@@ -61,6 +61,18 @@ export class TemplateMinerConfig {
   /** Whether tokens containing digits are treated as parameters. Default: true */
   parametrizeNumericTokens: boolean = true;
 
+  /**
+   * Enable param_count as second dimension in prefix tree binning (AEL-inspired).
+   *
+   * When enabled, the root-level tree key is "{token_count}#{param_count}"
+   * instead of just "{token_count}". Messages with the same number of
+   * parameters are grouped together, improving clustering for datasets
+   * with variable parameter patterns.
+   *
+   * Default: false (Drain3-compatible behavior)
+   */
+  enableParamBinning: boolean = false;
+
   // ===================== Template Pattern Strategies =====================
 
   /**
@@ -157,6 +169,21 @@ export class TemplateMinerConfig {
    * Default: [] (no collapse)
    */
   regexCollapsePatterns: ReadonlyArray<{
+    readonly regex: RegExp;
+    readonly replacement: string;
+  }> = [];
+
+  /**
+   * AEL-style regex substitution patterns.
+   *
+   * Applied to INDIVIDUAL tokens BEFORE regex collapse and fusion.
+   * Unlike masking, this replaces matched content within each token
+   * with ${paramStr}. This normalizes parameter tokens across all
+   * masking strategies.
+   *
+   * Default: [] (no substitution)
+   */
+  aelRegexSubstitution: ReadonlyArray<{
     readonly regex: RegExp;
     readonly replacement: string;
   }> = [];

@@ -59,6 +59,9 @@ export abstract class DrainBase {
   /** Strategy chain for template token parameterization. */
   readonly strategyChain: TemplatePatternStrategyChain;
 
+  /** Whether to use (token_count, param_count) as compound root key. */
+  readonly enableParamBinning: boolean;
+
   // ============================================================
   // State (maps to Python DrainBase.__init__ state initialization)
   // ============================================================
@@ -99,6 +102,7 @@ export abstract class DrainBase {
     enableAffixPreserving = false,
     minAffixLength = 2,
     customRegexPatterns = [],
+    enableParamBinning = false,
   }: DrainOptions = {}) {
     if (depth < 3) {
       throw new Error(`depth must be at least 3, got ${depth}`);
@@ -115,6 +119,7 @@ export abstract class DrainBase {
     this.extraDelimiters = Object.freeze([...extraDelimiters]);
     this.paramStr = paramStr;
     this.parametrizeNumericTokens = parametrizeNumericTokens;
+    this.enableParamBinning = enableParamBinning;
 
     // Build strategy chain for template parameterization
     this.strategyChain = this.buildStrategyChain({
@@ -190,6 +195,38 @@ export abstract class DrainBase {
     return [...this.idToCluster.values()];
   }
 
+  /**
+   * Counts parameter tokens (masked values) in a token sequence.
+   *
+   * A param token matches the mask pattern: starts with "<" and
+   * ends with ">" without being the paramStr placeholder itself.
+   */
+  protected countParamTokens(tokens: readonly string[]): number {
+    let count = 0;
+    for (const token of tokens) {
+      if (token.startsWith("<") && token.endsWith(">")) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /**
+   * Computes the root-level tree key for a token sequence.
+   *
+   * When enableParamBinning is true, uses compound key
+   * "{token_count}#{param_count}" for AEL-style binning.
+   * Otherwise uses simple "{token_count}" (Drain3-compatible).
+   */
+  protected getRootKey(tokens: readonly string[]): string {
+    const tc = tokens.length;
+    if (!this.enableParamBinning) {
+      return String(tc);
+    }
+    const pc = this.countParamTokens(tokens);
+    return `${tc}#${pc}`;
+  }
+
   // ============================================================
   // Utility methods (maps to Python DrainBase static/concrete methods)
   // ============================================================
@@ -256,7 +293,7 @@ export abstract class DrainBase {
   /**
    * Internal: collects cluster IDs from a subtree rooted at a given key.
    */
-  private _getClustersIdsForRootKey(key: string): number[] {
+  protected _getClustersIdsForRootKey(key: string): number[] {
     const curNode = this.rootNode.keyToChildNode.get(key);
     if (!curNode) return [];
 

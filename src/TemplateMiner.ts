@@ -19,6 +19,7 @@ import type { LogCluster as ILogCluster } from "./core/LogCluster.js";
 import {
   AdjacentConstantFusion,
   RegexCollapseNormalizer,
+  RegexSubstitutionNormalizer,
   TokenNormalizerPipeline,
 } from "./core/TokenNormalizer.js";
 import * as zlib from "node:zlib";
@@ -162,6 +163,7 @@ export class TemplateMiner {
       enableAffixPreserving: config.enableAffixPreserving,
       minAffixLength: config.minAffixLength,
       customRegexPatterns: config.customRegexPatterns,
+      enableParamBinning: config.enableParamBinning,
     });
 
     // Create the masker with the configured instructions
@@ -173,7 +175,13 @@ export class TemplateMiner {
 
     // Build the token normalizer pipeline
     this._normalizerPipeline = new TokenNormalizerPipeline();
-    // Phase 1: Regex collapse (optional — runs first to simplify token structure)
+    // Phase 0: AEL-style regex substitution (runs first — per-token)
+    if (config.aelRegexSubstitution.length > 0) {
+      this._normalizerPipeline.register(
+        new RegexSubstitutionNormalizer(config.aelRegexSubstitution),
+      );
+    }
+    // Phase 1: Regex collapse (runs second — across joined tokens)
     if (config.regexCollapsePatterns.length > 0) {
       this._normalizerPipeline.register(
         new RegexCollapseNormalizer(config.regexCollapsePatterns),

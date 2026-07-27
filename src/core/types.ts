@@ -155,4 +155,18 @@ export interface DrainOptions {
     readonly template: string;
     readonly confidence?: number;
   }>;
+  /**
+   * Enable param_count as a second dimension in prefix tree binning.
+   *
+   * When true, the root-level key is "{token_count}#{param_count}"
+   * instead of just "{token_count}". This groups messages with the
+   * same token count AND same number of parameters together,
+   * improving clustering accuracy for datasets with variable content.
+   *
+   * Inspired by AEL's (token_count, param_count) binning strategy
+   * which achieves 0.974 GA on Proxifier.
+   *
+   * Default: false (Drain3-compatible behavior)
+   */
+  readonly enableParamBinning?: boolean;
 }

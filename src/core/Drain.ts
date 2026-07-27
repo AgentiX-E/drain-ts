@@ -45,7 +45,7 @@ export class Drain extends DrainBase {
    * Python: Drain.tree_search(root_node, tokens, sim_th, include_params)
    *
    * Search strategy (identical to Python):
-   * 1. Look up the token count node at root level
+   * 1. Look up the root key node (token_count or {tc}#{pc} with param binning)
    * 2. For empty tokens, return the first (only) cluster directly
    * 3. Walk down the tree for up to maxNodeDepth levels:
    *    - Exact token match → follow that path
@@ -65,12 +65,11 @@ export class Drain extends DrainBase {
     simTh: number,
     includeParams: boolean,
   ): LogCluster | null {
-    // Step 1: Locate the token count node
+    // Step 1: Locate the root key node (handles param binning)
     const tokenCount = tokens.length;
-    const tokenCountStr = String(tokenCount);
+    const rootKey = this.getRootKey(tokens);
 
-    // Python: cur_node = root_node.key_to_child_node.get(str(token_count))
-    let curNode = rootNode.keyToChildNode.get(tokenCountStr);
+    let curNode = rootNode.keyToChildNode.get(rootKey);
     if (!curNode) return null;
 
     // Step 2: Empty tokens → return the first cluster directly
@@ -141,13 +140,13 @@ export class Drain extends DrainBase {
    */
   addSeqToPrefixTree(rootNode: Node, cluster: LogCluster): void {
     const tokenCount = cluster.logTemplateTokens.length;
-    const tokenCountStr = String(tokenCount);
+    const rootKey = this.getRootKey(cluster.logTemplateTokens);
 
-    // Level 1: Token count node
-    let firstLayerNode = rootNode.keyToChildNode.get(tokenCountStr);
+    // Level 1: Root key node (token_count or {tc}#{pc})
+    let firstLayerNode = rootNode.keyToChildNode.get(rootKey);
     if (!firstLayerNode) {
       firstLayerNode = new Node();
-      rootNode.keyToChildNode.set(tokenCountStr, firstLayerNode);
+      rootNode.keyToChildNode.set(rootKey, firstLayerNode);
     }
 
     let curNode = firstLayerNode;
@@ -371,7 +370,8 @@ export class Drain extends DrainBase {
 
     // Python: def full_search() → return self.fast_match(all_ids, content_tokens, required_sim_th, include_params=True)
     const fullSearch = (): LogCluster | null => {
-      const allIds = this.getClustersIdsForSeqLen(contentTokens.length);
+      const rootKey = this.getRootKey(contentTokens);
+      const allIds = this._getClustersIdsForRootKey(rootKey);
       return this.fastMatch(allIds, contentTokens, REQUIRED_SIM_TH, true);
     };
 

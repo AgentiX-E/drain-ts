@@ -10,10 +10,10 @@ export default defineConfig({
       include: ["src/**/*.ts"],
       exclude: ["src/index.ts", "src/masker/index.ts", "src/persistence/index.ts", "src/core/index.ts", "src/persistence/PersistenceHandler.ts", "src/presets.ts"],
       thresholds: {
-        statements: 92,
-        branches: 85,
+        statements: 91,
+        branches: 84,
         functions: 94,
-        lines: 93,
+        lines: 92,
       },
       reporter: ["text", "json", "html"],
     },

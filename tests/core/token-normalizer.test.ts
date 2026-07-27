@@ -5,10 +5,75 @@ import { describe, it, expect } from "vitest";
 import {
   AdjacentConstantFusion,
   RegexCollapseNormalizer,
+  RegexSubstitutionNormalizer,
   TokenNormalizerPipeline,
   createDefaultNormalizerPipeline,
   createExtendedNormalizerPipeline,
 } from "../../src/core/TokenNormalizer.js";
+
+// ============================================================
+// 0. RegexSubstitutionNormalizer (AEL-style)
+// ============================================================
+
+describe("RegexSubstitutionNormalizer", () => {
+  it("should replace digits with paramStr", () => {
+    const normalizer = new RegexSubstitutionNormalizer([
+      { regex: /\d+/g, replacement: "${paramStr}" },
+    ]);
+
+    const tokens = ["192", "hello", "123", "world"];
+    const result = normalizer.normalize(tokens, "<*>");
+    expect(result.tokens).toEqual(["<*>", "hello", "<*>", "world"]);
+  });
+
+  it("should handle IP addresses", () => {
+    const normalizer = new RegexSubstitutionNormalizer([
+      { regex: /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g, replacement: "${paramStr}" },
+    ]);
+
+    const tokens = ["192.168.1.1", "user"];
+    const result = normalizer.normalize(tokens, "<*>");
+    expect(result.tokens).toEqual(["<*>", "user"]);
+  });
+
+  it("should preserve non-matching tokens", () => {
+    const normalizer = new RegexSubstitutionNormalizer([
+      { regex: /\d+/g, replacement: "${paramStr}" },
+    ]);
+
+    const tokens = ["hello", "world"];
+    const result = normalizer.normalize(tokens, "<*>");
+    expect(result.tokens).toEqual(["hello", "world"]);
+    expect(result.changes.length).toBe(0);
+  });
+
+  it("should handle multiple patterns", () => {
+    const normalizer = new RegexSubstitutionNormalizer([
+      { regex: /\d+/g, replacement: "${paramStr}" },
+      { regex: /[A-Fa-f0-9]{8}/g, replacement: "${paramStr}" },
+    ]);
+
+    const tokens = ["123", "DEADBEEF", "abc"];
+    const result = normalizer.normalize(tokens, "<*>");
+    expect(result.tokens).toEqual(["<*>", "<*>", "abc"]);
+  });
+
+  it("should handle empty token array", () => {
+    const normalizer = new RegexSubstitutionNormalizer([
+      { regex: /\d+/g, replacement: "${paramStr}" },
+    ]);
+    const result = normalizer.normalize([], "<*>");
+    expect(result.tokens).toEqual([]);
+  });
+
+  it("should work with custom paramStr", () => {
+    const normalizer = new RegexSubstitutionNormalizer([
+      { regex: /\d+/g, replacement: "${paramStr}" },
+    ]);
+    const result = normalizer.normalize(["123", "abc"], "<NUM>");
+    expect(result.tokens).toEqual(["<NUM>", "abc"]);
+  });
+});
 
 // ============================================================
 // 1. RegexCollapseNormalizer
