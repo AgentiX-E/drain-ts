@@ -42,9 +42,8 @@ import { TemplateMiner } from "../src/TemplateMiner.js";
 import { TemplateMinerConfig } from "../src/TemplateMinerConfig.js";
 import { EXTENDED_MASKING_INSTRUCTIONS } from "../src/masker/presets.js";
 import {
-  evaluate,
-  type GroundTruthEntry,
-  type ParsedEntry,
+  evaluateCompact,
+  type CompactEvalData,
 } from "./evaluator.js";
 
 // ============================================================
@@ -514,33 +513,33 @@ async function runDataset(ds: FullDatasetDescriptor, localDir?: string | null): 
     }
   }
 
-  // Reconstruct parsed entries BEFORE mergeClusters (merge deletes clusters)
-  const parsed: ParsedEntry[] = new Array<ParsedEntry>(messages.length);
+  // Reconstruct parsed template tokens (one entry per cluster, not per message)
+  const parsedTemplateTokens = new Map<number, string[]>();
   for (let i = 0; i < messages.length; i++) {
-    const cluster = miner.idToCluster.get(clusterIds[i]!);
-    parsed[i] = {
-      clusterId: clusterIds[i]!,
-      templateTokens: cluster ? [...cluster.logTemplateTokens] : [],
-    };
+    const cid = clusterIds[i]!;
+    if (!parsedTemplateTokens.has(cid)) {
+      const cluster = miner.idToCluster.get(cid);
+      parsedTemplateTokens.set(cid, cluster ? [...cluster.logTemplateTokens] : []);
+    }
   }
 
   // Post-training cluster merge
   miner.mergeClusters();
 
-  // Build GroundTruth from compact data
-  const groundTruth: GroundTruthEntry[] = new Array<GroundTruthEntry>(messages.length);
-  for (let i = 0; i < messages.length; i++) {
-    const tid = gtTemplateIds[i]!;
-    const tokens = templateTokensMap.get(tid) ?? [];
-    groundTruth[i] = { logLine: messages[i]!, templateTokens: tokens, templateId: tid };
-  }
+  // Memory-efficient evaluation: no full GroundTruthEntry[] or ParsedEntry[] arrays
+  const evalData: CompactEvalData = {
+    gtTemplateIds,
+    clusterIds,
+    gtTemplateTokens: templateTokensMap,
+    parsedTemplateTokens,
+    totalMessages: messages.length,
+  };
 
-  // Free compact data before evaluation (to reduce peak memory)
+  // Free content strings before evaluation (major memory savings)
   (messages as unknown) = undefined;
-  (gtTemplateIds as unknown) = undefined;
 
   const durationMs = performance.now() - startTime;
-  const evalResult = evaluate(groundTruth, parsed);
+  const evalResult = evaluateCompact(evalData);
 
   return {
     dataset: ds.name,
