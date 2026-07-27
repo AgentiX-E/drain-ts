@@ -4,12 +4,12 @@
 
 [![CI](https://github.com/AgentiX-E/drain-ts/actions/workflows/ci.yml/badge.svg)](https://github.com/AgentiX-E/drain-ts/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/@agentix-e/drain-ts?color=blue)](https://www.npmjs.com/package/@agentix-e/drain-ts)
-[![Coverage](https://img.shields.io/badge/coverage-report-blue)](https://agentix-e.github.io/drain-ts/coverage-report/)
-[![Benchmark](https://img.shields.io/badge/benchmark-Loghub%202k-blue)](https://agentix-e.github.io/drain-ts/benchmark-report/2k/)
+[![Coverage](https://img.shields.io/badge/coverage-97%25-blue)](https://agentix-e.github.io/drain-ts/coverage-report/)
+[![Benchmark 2k](https://img.shields.io/badge/benchmark-Loghub%202k-blue)](https://agentix-e.github.io/drain-ts/benchmark-report/2k/)
+[![Benchmark Full](https://img.shields.io/badge/benchmark-Loghub%20full-blue)](https://agentix-e.github.io/drain-ts/benchmark-report/full/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D22-green)](https://nodejs.org/)
-[![npm downloads](https://img.shields.io/npm/dm/@agentix-e/drain-ts?color=blue)](https://www.npmjs.com/package/@agentix-e/drain-ts)
 
 ---
 
@@ -192,16 +192,28 @@ TemplateMiner (public API)
 
 ## Benchmark Results
 
-drain-ts is validated against all 16 [Loghub 2k](https://github.com/logpai/loghub) standard benchmark datasets using the four official metrics: GA, FGA, PTA, FTA.
+### Loghub-2k (16 datasets × 2,000 messages)
 
-→ **[View Benchmark Report →](https://agentix-e.github.io/drain-ts/benchmark-report/)**
+drain-ts is validated against all 16 [Loghub 2k](https://github.com/logpai/logparser) standard benchmark datasets using the four official metrics: GA, FGA, PTA, FTA.
 
-Average across all 16 datasets (GA: 0.991, PTA: 0.828, 70k–420k logs/sec). Run locally:
+→ **[View Loghub-2k Benchmark →](https://agentix-e.github.io/drain-ts/benchmark-report/2k/)**
+
+Average across all 16 datasets: **GA: 0.991, PTA: 0.828** (70k–420k logs/sec).
 
 ```bash
 npx tsx benchmark/run.ts --all       # All 16 Loghub 2k datasets
 npx tsx benchmark/run.ts HDFS        # Single dataset
-npx tsx benchmark/run-full.ts --all  # Full Loghub-2.0 (requires ~100GB)
+```
+
+### Loghub-2.0 Full (16 datasets × 3.6M messages avg)
+
+The full Loghub-2.0 benchmark processes ~57 million messages across 16 datasets. CI runs a smoke test; run locally for complete results.
+
+→ **[View Full Benchmark →](https://agentix-e.github.io/drain-ts/benchmark-report/full/)**
+
+```bash
+npx tsx benchmark/run-full.ts --smoke  # 2k smoke test (CI)
+npx tsx benchmark/run-full.ts --all    # Full 57M messages (~48h, ~100GB)
 ```
 
 ## API Quick Reference

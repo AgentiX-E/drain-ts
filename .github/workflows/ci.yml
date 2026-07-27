@@ -145,7 +145,7 @@ jobs:
           </body></html>
           HTMLEOF
 
-          # --- Index page ---
+          # --- Index page (relative links from benchmark-report/) ---
           cat > benchmark-report/index.html << 'HTMLEOF'
           <!DOCTYPE html>
           <html lang="en">
@@ -161,7 +161,16 @@ jobs:
           <h1>drain-ts Reports</h1>
           <div class="section">
             <h2>Benchmarks</h2>
-            <a href="benchmark-report/2k/">Loghub-2k Benchmark (16 datasets × 2k messages)</a>
+            <a href="2k/">Loghub-2k Benchmark (16 datasets × 2,000 messages)</a>
+            <a href="full/">Loghub-2.0 Full Benchmark (CI smoke test)</a>
+          </div>
+          <div class="section">
+            <h2>Coverage</h2>
+            <a href="../coverage-report/">Test Coverage Report (vitest v8)</a>
+          </div>
+          <p><small>Automated by GitHub Actions | <a href="https://github.com/AgentiX-E/drain-ts">Source</a></small></p>
+          </body></html>
+          HTMLEOF
             <a href="benchmark-report/full/">Loghub-2.0 Full Benchmark (smoke test)</a>
           </div>
           <div class="section">
