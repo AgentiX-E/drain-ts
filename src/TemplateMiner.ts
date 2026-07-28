@@ -688,10 +688,21 @@ export class TemplateMiner {
   }
 
   /**
-   * Synchronous state loading — called from constructor (sync handler)
-   * or from `create()` factory (after async handler resolves).
+   * Restores state from a serialized snapshot.
    *
-   * Python: TemplateMiner.load_state()
+   * **Rebuild behavior**: The snapshot stores only per-cluster metadata
+   * (`cluster_id`, `log_template_tokens`, `size`). The prefix tree is NOT
+   * preserved — on load, each cluster is re-inserted via
+   * `addSeqToPrefixTree()`, rebuilding the tree from scratch.
+   *
+   * This means:
+   * - Load time is O(n) where n is the number of clusters
+   * - The resulting tree structure may differ from the tree at save time
+   *   (insertion order affects prefix tree shape)
+   * - This is a deliberate simplification vs. Drain3's `jsonpickle` approach
+   *   which serializes the complete Python object graph including tree structure.
+   *
+   * @param stateBuffer - Raw snapshot bytes (possibly compressed).
    */
   private _doLoad(stateBuffer: Uint8Array | null): void {
     if (!stateBuffer || stateBuffer.length === 0) return;
