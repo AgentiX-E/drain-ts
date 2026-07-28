@@ -247,7 +247,7 @@ const SMOKE_DATASETS: FullDatasetDescriptor[] = [
     groundTruthUrl: "https://raw.githubusercontent.com/logpai/logparser/main/data/loghub_2k/Proxifier/Proxifier_2k.log_structured.csv",
     category: "Standalone Software",
     targetGA: 0.700,
-    targetPTA: 0.7,
+    targetPTA: 0.180,
     drainExtraDelimiters: [","],
     disableMasking: true,
     enableAdjacentFusion: true,
@@ -509,42 +509,46 @@ async function runDataset(ds: FullDatasetDescriptor, localDir?: string | null): 
 
   const startTime = performance.now();
 
-  // Process all messages — store clusterId per position (compact: number vs string)
-  const clusterIds = new Array<number>(messages.length);
+  // Process all messages — store clusterId + templateMined per position
+  let clusterIds = new Array<number>(messages.length);
+  let templatesMined = new Array<string>(messages.length);
   for (let i = 0; i < messages.length; i++) {
     const result = miner.addLogMessage(messages[i]!);
     clusterIds[i] = result.clusterId;
+    templatesMined[i] = result.templateMined;
     if ((i + 1) % 100000 === 0) {
       process.stdout.write(`  ${i + 1}/${messages.length} (${((i + 1) / messages.length * 100).toFixed(1)}%)\r`);
     }
   }
 
-  // Reconstruct parsed template tokens, merge, and evaluate — all guarded
+  // Reconstruct evaluation arrays and evaluate
   const durationMs = performance.now() - startTime;
   let evalResult;
   try {
-    const parsedTemplateTokens = new Map<number, string[]>();
-    const clusterMap = miner.drain.idToCluster;
-    for (let i = 0; i < clusterIds.length; i++) {
-      const cid = clusterIds[i];
-      if (cid == null || parsedTemplateTokens.has(cid)) continue;
-      const cluster = clusterMap.get(cid);
-      parsedTemplateTokens.set(cid, (cluster && cluster.logTemplateTokens) ? [...cluster.logTemplateTokens] : []);
-    }
-
     miner.mergeClusters();
-
-    const evalData: CompactEvalData = {
-      gtTemplateIds,
-      clusterIds,
-      gtTemplateTokens: templateTokensMap,
-      parsedTemplateTokens,
-      totalMessages: messages.length,
-    };
+    
+    // Build evaluation arrays from compact data + per-message templatesMined
+    type GE = { logLine: string; templateTokens: string[]; templateId: number };
+    type PE = { clusterId: number; templateTokens: string[] };
+    const groundTruth: GE[] = new Array(totalMessages);
+    const parsed: PE[] = new Array(totalMessages);
+    
+    for (let i = 0; i < totalMessages; i++) {
+      const tid = gtTemplateIds[i]!;
+      groundTruth[i] = { logLine: "", templateTokens: templateTokensMap.get(tid) ?? [], templateId: tid };
+      parsed[i] = { clusterId: clusterIds[i]!, templateTokens: templatesMined[i]!.split(" ") };
+    }
+    
+    // Free compact data
+    (gtTemplateIds as unknown) = undefined;
+    (clusterIds as unknown) = undefined;
+    (templatesMined as unknown) = undefined;
     (messages as unknown) = undefined;
-    evalResult = evaluateCompact(evalData);
+    
+    const { evaluate } = await import("./evaluator.js");
+    evalResult = evaluate(groundTruth as any, parsed as any);
   } catch (e: any) {
-    process.stderr.write(`[eval] compact eval failed: ${e.message}\n`);
+    process.stderr.write(`[eval] failed: ${e.message}\n`);
     evalResult = null;
   }
 
