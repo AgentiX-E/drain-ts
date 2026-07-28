@@ -16,7 +16,7 @@ on:
 jobs:
   benchmark:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
@@ -35,7 +35,7 @@ jobs:
           mkdir -p /tmp/datasets
           curl -L -o /tmp/datasets/${{ inputs.dataset }}.zip \
             "https://zenodo.org/api/records/${{ inputs.zenodo_id }}/files/${{ inputs.dataset }}.zip/content"
-          unzip -o /tmp/datasets/${{ inputs.dataset }}.zip -d /tmp/datasets/
+          unzip -o /tmp/datasets/${{ inputs.dataset }}.zip "*.log_structured.csv" -d /tmp/datasets/
 
       - name: Run full benchmark
         run: |
