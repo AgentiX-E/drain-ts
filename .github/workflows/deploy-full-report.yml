@@ -1,0 +1,73 @@
+name: Deploy Full Benchmark Report
+
+on:
+  workflow_run:
+    workflows: ["Benchmark Full (All Datasets)"]
+    types: [completed]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download all benchmark artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_ID=${{ github.event.workflow_run.id }}
+          echo "Downloading from benchmark-full run $RUN_ID"
+          DATASETS="Proxifier Linux Apache Zookeeper Mac HealthApp Hadoop OpenStack HPC OpenSSH BGL Spark HDFS Thunderbird"
+          COUNT=0
+          mkdir -p /tmp/fb-results benchmark-report/full
+
+          for ds in $DATASETS; do
+            gh run download "$RUN_ID" --repo AgentiX-E/drain-ts \
+              --name "benchmark-full-${ds}" --dir "/tmp/fb-results" 2>/dev/null || true
+          done
+
+          {
+            echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>drain-ts Loghub-2.0 Full Benchmark</title>'
+            echo '<style>body{font-family:monospace;background:#0d1117;color:#c9d1d9;padding:2em}'
+            echo 'h1{color:#58a6ff}pre{background:#161b22;padding:1em;border-radius:6px;overflow-x:auto}'
+            echo 'a{color:#58a6ff}table{border-collapse:collapse}'
+            echo 'td,th{padding:4px 12px;text-align:right}th{text-align:left;color:#8b949e}</style></head>'
+            echo '<body><h1>drain-ts Loghub-2.0 Full Benchmark Report</h1><p>All 14 datasets from Loghub-2.0 (ISSTA 2024 benchmark)</p><pre>'
+          } > benchmark-report/full/index.html
+
+          for f in /tmp/fb-results/bench-*.txt; do
+            [ -f "$f" ] || continue
+            cat "$f" >> benchmark-report/full/index.html
+            COUNT=$((COUNT+1))
+          done
+
+          {
+            echo "</pre>"
+            echo "<p>${COUNT} of 14 datasets | "
+            echo "<a href=\"https://github.com/AgentiX-E/drain-ts/actions/workflows/benchmark-full.yml\">Run History</a></p>"
+            echo "</body></html>"
+          } >> benchmark-report/full/index.html
+
+          echo "Generated report with $COUNT datasets"
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: .
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
