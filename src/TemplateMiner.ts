@@ -652,7 +652,8 @@ export class TemplateMiner {
     if (!this._persistence) return;
 
     const snapshot = {
-      version: "0.1.0",
+      version: "0.1.1",
+      clusters_counter: this.drain.clustersCounter,
       clusters: [...this.drain.idToCluster.values()].map((c) => ({
         cluster_id: c.clusterId,
         log_template_tokens: c.logTemplateTokens,
@@ -722,20 +723,27 @@ export class TemplateMiner {
     if (!snapshot.clusters || !Array.isArray(snapshot.clusters)) return;
 
     this.drain.idToCluster.clear();
-    let maxClusterId = 0;
+
+    // Restore clusters counter from snapshot (avoids O(n) re-scan)
+    if (typeof snapshot.clusters_counter === "number") {
+      this.drain.clustersCounter = snapshot.clusters_counter;
+    }
 
     for (const c of snapshot.clusters) {
       const cluster = new LogCluster(c.log_template_tokens, c.cluster_id);
       cluster.size = c.size;
       this.drain.idToCluster.set(c.cluster_id, cluster);
       this.drain.addSeqToPrefixTree(this.drain.rootNode, cluster);
-
-      if (c.cluster_id > maxClusterId) {
-        maxClusterId = c.cluster_id;
-      }
     }
 
-    this.drain.clustersCounter = maxClusterId;
+    // Fallback for pre-0.1.1 snapshots without clusters_counter
+    if (typeof snapshot.clusters_counter !== "number" && this.drain.clustersCounter === 0) {
+      for (const c of snapshot.clusters) {
+        if (c.cluster_id > this.drain.clustersCounter) {
+          this.drain.clustersCounter = c.cluster_id;
+        }
+      }
+    }
   }
 
   // ============================================================
