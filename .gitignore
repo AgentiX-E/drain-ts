@@ -7,3 +7,4 @@ dist-browser/
 test-results/
 benchmark-report/
 coverage-report/
+drain-ts-audit-*.md

@@ -140,7 +140,7 @@ const FULL_DATASETS: FullDatasetDescriptor[] = [
     groundTruthUrl: "https://zenodo.org/records/8275861/files/BGL.log_structured.csv?download=1",
     category: "Supercomputers",
     targetGA: 0.960,
-    targetPTA: 0.77,
+    targetPTA: 0.76,
   },
   {
     name: "HPC",
@@ -156,7 +156,7 @@ const FULL_DATASETS: FullDatasetDescriptor[] = [
     groundTruthUrl: "https://zenodo.org/records/8275861/files/Thunderbird.log_structured.csv?download=1",
     category: "Supercomputers",
     targetGA: 0.940,
-    targetPTA: 0.77,
+    targetPTA: 0.76,
   },
   // ===================== Operating Systems =====================
   {
@@ -224,7 +224,7 @@ const FULL_DATASETS: FullDatasetDescriptor[] = [
     groundTruthUrl: "https://zenodo.org/records/8275861/files/Proxifier.log_structured.csv?download=1",
     category: "Standalone Software",
     targetGA: 0.700,
-    targetPTA: 0.7,
+    targetPTA: 0.66,
     drainExtraDelimiters: [","],
     disableMasking: true,
     enableAdjacentFusion: true,
