@@ -101,53 +101,8 @@ jobs:
     with:
       dataset: Thunderbird
 
-  # ─── Aggregate report ────────────────────────────────────────
-  report:
-    if: always()
-    needs:
-      [Proxifier, Linux, Apache, Zookeeper, Mac, HealthApp, Hadoop,
-       OpenStack, HPC, OpenSSH, BGL, Spark, HDFS, Thunderbird]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Download all benchmark artifacts
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          mkdir -p /tmp/results
-          for name in Proxifier Apache; do
-            gh run download ${{ github.run_id }} --repo AgentiX-E/drain-ts --name "benchmark-full-${name}" --dir /tmp/results 2>/dev/null || true
-          done
-          ls -la /tmp/results/
-
-      - name: Generate aggregate report
-        run: |
-          mkdir -p /tmp/pages/benchmark-report/full
-          {
-            echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>drain-ts Loghub-2.0 Full Benchmark</title>'
-            echo '<style>body{font-family:monospace;background:#0d1117;color:#c9d1d9;padding:2em}h1{color:#58a6ff}pre{background:#161b22;padding:1em;border-radius:6px;overflow-x:auto}a{color:#58a6ff}</style></head>'
-            echo '<body><h1>drain-ts Loghub-2.0 Full Benchmark Report</h1><pre>'
-          } > /tmp/pages/benchmark-report/full/index.html
-
-          ls -la /tmp/results/
-          COUNT=0
-          for f in /tmp/results/bench-*.txt; do
-            [ -f "$f" ] || continue
-            cat "$f" >> /tmp/pages/benchmark-report/full/index.html
-            COUNT=$((COUNT+1))
-          done
-
-          {
-            echo "</pre><p>${COUNT} of 14 datasets reported</p>"
-            echo '<p><a href="https://github.com/AgentiX-E/drain-ts/actions/workflows/benchmark-full.yml">Run History</a></p>'
-            echo '</body></html>'
-          } >> /tmp/pages/benchmark-report/full/index.html
-
-      - name: Upload aggregate report artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: full-benchmark-report
-          path: /tmp/pages/benchmark-report/full/
-          retention-days: 30
+  # ══════════════════════════════════════════════════════════════════
+  # No report job. CI deploy-pages in ci.yml aggregates all results
+  # via gh run download for each benchmark-full-<dataset> artifact.
+  # This keeps benchmark-full.yml simple: 14 independent parallel jobs.
+  # ══════════════════════════════════════════════════════════════════
