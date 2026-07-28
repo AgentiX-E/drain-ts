@@ -30,7 +30,7 @@
  *
  * Usage:
  * ```typescript
- * import { RoundRobinPool } from "@agentix-e/drain-ts/round-robin-pool";
+ * import { RoundRobinPool } from "@agentix-e/drain-ts";
  *
  * const pool = new RoundRobinPool({
  *   instanceCount: 4,

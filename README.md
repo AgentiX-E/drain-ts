@@ -63,11 +63,11 @@ pnpm add @agentix-e/drain-ts
 
 ### Performance vs Drain3
 
-Measured on the same HDFS dataset (2000 messages, Node 22 / Python 3.11):
+Measured on the same HDFS dataset (2,000 messages, Node 22 LTS / Python 3.11):
 
-| Metric | Drain3 | drain-ts |
-|--------|--------|----------|
-| Processing time | 9 ms | Pure: ~5 ms |
+| Metric | Drain3 (Python) | drain-ts (Node.js) |
+|--------|----------------|-------------------|
+| Processing time | ~9 ms | ~5 ms |
 | Throughput | ~228k logs/sec | ~420k logs/sec |
 | Clusters (HDFS) | 17 | 16 |
 
@@ -237,11 +237,11 @@ npx tsx benchmark/run-full.ts --all --data-dir /path/to/datasets
 git clone https://github.com/AgentiX-E/drain-ts.git
 cd drain-ts
 pnpm install
-pnpm test          # 524 tests
+pnpm test          # 548 tests
 pnpm test:coverage # [Coverage report](https://agentix-e.github.io/drain-ts/coverage-report/) (enforced thresholds)
 pnpm typecheck     # Strict TypeScript check
 pnpm build         # ESM + CJS output
-pnpm benchmark     # Run Loghub 2k benchmark (all 15 datasets)
+pnpm benchmark     # Run Loghub 2k benchmark (all 16 datasets)
 ```
 
 ## External Persistence

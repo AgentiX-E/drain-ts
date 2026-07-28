@@ -12,7 +12,7 @@
  *
  * Usage:
  * ```typescript
- * import { DrainStream } from "@agentix-e/drain-ts/stream";
+ * import { DrainStream } from "@agentix-e/drain-ts";
  * import { createReadStream } from "node:fs";
  *
  * createReadStream("app.log")
@@ -55,7 +55,7 @@ export interface DrainStreamOptions {
  * ```typescript
  * // Pipe a log file through DrainStream
  * import { createReadStream, createWriteStream } from "node:fs";
- * import { DrainStream } from "@agentix-e/drain-ts/stream";
+ * import { DrainStream } from "@agentix-e/drain-ts";
  *
  * const stream = new DrainStream({
  *   config: TemplateMinerConfig.from({ simTh: 0.5 }),

@@ -5,7 +5,7 @@
 ### Added
 - **JaccardDrain** algorithm variant (first-token-based tree with Jaccard similarity)
 - **DrainStream**: Node.js Transform stream for real-time log processing
-- **WorkerPool**: Multi-core parallel log template mining
+- **RoundRobinPool**: In-process round-robin TemplateMiner instances
 - **AbstractMaskingInstruction**: Pluggable masking backends (non-regex)
 - **RFC 4180 CSV parser**: Self-built, 40+ test vectors validated
 - **Playwright browser tests**: Verified Drain/JaccardDrain/masking/LRU in real Chromium
@@ -13,7 +13,7 @@
 - **INI config support**: `TemplateMinerConfig.fromIni()` for drain3.ini compatibility
 - **Benchmark CI**: HDFS smoke test in quality pipeline
 - **Node 24 CI**: Forward compatibility matrix
-- 3 new masking presets: `HOST_PORT`, `BLOCK_ID`, `PATH`
+- 4 new masking presets: `HOST_PORT`, `BLOCK_ID`, `PATH`, `SYSLOG_NUM`
 - `getParameterList()`: Drain3 API compatibility
 
 ### Changed
@@ -21,7 +21,7 @@
 - **`addLogMessage` moved to DrainBase**: shared by Drain and JaccardDrain (matches Python)
 - **PTA evaluator**: `<...>` token normalization for masked parameter equivalence
 - **Benchmark**: Uses GT CSV Content column as input (standard Loghub approach)
-- **Extended masking**: 5 → 8 presets
+- **Extended masking**: 5 → 9 presets
 - **TemplateMinerConfig**: added `engine` field (`"Drain" | "JaccardDrain"`)
 
 ### Fixed
