@@ -13,23 +13,27 @@ import { TemplateMinerConfig } from "../../src/TemplateMinerConfig.js";
 import { TokenNormalizerPipeline } from "../../src/core/TokenNormalizer.js";
 
 describe("DrainStream: Buffer input and split lines", () => {
-  it("should handle Buffer input chunks", (done) => {
+  it("should handle Buffer input chunks", async () => {
     const stream = new DrainStream();
     const results: unknown[] = [];
+    const endPromise = new Promise<void>((resolve) => stream.on("end", resolve));
     stream.on("data", (data) => results.push(data));
-    stream.on("end", () => { expect(results.length).toBeGreaterThan(0); done(); });
     stream.write(Buffer.from("user logged in\n"));
     stream.end();
+    await endPromise;
+    expect(results.length).toBeGreaterThan(0);
   });
 
-  it("should handle split lines across chunks", (done) => {
+  it("should handle split lines across chunks", async () => {
     const stream = new DrainStream();
     const results: unknown[] = [];
+    const endPromise = new Promise<void>((resolve) => stream.on("end", resolve));
     stream.on("data", (data) => results.push(data));
-    stream.on("end", () => { expect(results.length).toBe(1); done(); });
     stream.write("user logged ");
     stream.write("in\n");
     stream.end();
+    await endPromise;
+    expect(results.length).toBe(1);
   });
 });
 
