@@ -54,7 +54,7 @@ pnpm add @agentix-e/drain-ts
 | **Persistence** | ✅ File/Redis/Kafka | ✅ File/Memory + plugin interface |
 | **Profiling** | ✅ | ✅ Same section names + batch rates |
 | **Streaming** | ❌ | ✅ Node.js Transform stream |
-| **Worker threads** | ❌ | ✅ WorkerPool multi-core |
+| **Round-robin pool** | ❌ | ✅ RoundRobinPool in-process instances |
 | **Browser support** | ❌ | ✅ Playwright-verified |
 | **Zero deps** | ❌ Requires pip | ✅ No runtime dependencies |
 | **Type safety** | ❌ Dynamic | ✅ Full TypeScript, strict mode |

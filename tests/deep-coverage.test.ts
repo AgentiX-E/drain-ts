@@ -13,7 +13,7 @@ import { MatchStrategy } from "../src/core/types.js";
 import { LogMasker } from "../src/masker/LogMasker.js";
 import { MaskingInstruction } from "../src/masker/MaskingInstruction.js";
 import { SimpleProfiler } from "../src/Profiler.js";
-import { WorkerPool } from "../src/WorkerPool.js";
+import { RoundRobinPool } from "../src/RoundRobinPool.js";
 import { MemoryPersistence } from "../src/persistence/MemoryPersistence.js";
 
 // ============================================================
@@ -243,14 +243,14 @@ describe("Profiler: toString edge cases", () => {
 });
 
 // ============================================================
-// WorkerPool: _cpuCount branch (L205)
+// RoundRobinPool: _cpuCount branch (L205)
 // ============================================================
 
-describe("WorkerPool: cpu count path", () => {
+describe("RoundRobinPool: cpu count path", () => {
   it("should handle _cpuCount gracefully", () => {
     // Constructor exercises _cpuCount automatically via require('os').cpus()
-    const pool = new WorkerPool({ workerCount: 1 });
-    expect(pool.workerCount).toBe(1);
+    const pool = new RoundRobinPool({ instanceCount: 1 });
+    expect(pool.instanceCount).toBe(1);
   });
 });
 

@@ -1,5 +1,5 @@
 /**
- * I23 coverage hardening — edge case tests for DrainStream, WorkerPool, Profiler, and TemplateMinerConfig.
+ * I23 coverage hardening — edge case tests for DrainStream, RoundRobinPool, Profiler, and TemplateMinerConfig.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DrainStream, createDrainStream } from "../../src/DrainStream.js";
@@ -210,10 +210,10 @@ describe("TemplateMinerConfig INI parsing edge cases", () => {
 });
 
 // ============================================================
-// WorkerPool edge cases
+// RoundRobinPool edge cases
 // ============================================================
 
-// WorkerPool tests are covered in worker-pool.test.ts
+// RoundRobinPool tests are covered in round-robin-pool.test.ts
 // Additional edge cases are tested there
 
 // ============================================================

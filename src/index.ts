@@ -60,5 +60,5 @@ export {
 // Streaming
 export { DrainStream, createDrainStream } from "./DrainStream.js";
 
-// Workers
-export { WorkerPool } from "./WorkerPool.js";
+// In-process round-robin pool
+export { RoundRobinPool } from "./RoundRobinPool.js";
