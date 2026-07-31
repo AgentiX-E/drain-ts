@@ -11,6 +11,7 @@ import {
   HEX_MASK,
   UUID_MASK,
   EMAIL_MASK,
+  HOST_PORT_MASK,
   DEFAULT_MASKING_INSTRUCTIONS,
   EXTENDED_MASKING_INSTRUCTIONS,
   ALL_MASKING_INSTRUCTIONS,
@@ -95,5 +96,164 @@ describe("Convenience collections", () => {
     expect(Object.isFrozen(DEFAULT_MASKING_INSTRUCTIONS)).toBe(true);
     expect(Object.isFrozen(EXTENDED_MASKING_INSTRUCTIONS)).toBe(true);
     expect(Object.isFrozen(ALL_MASKING_INSTRUCTIONS)).toBe(true);
+  });
+});
+
+// ============================================================
+// HOST_PORT_MASK tests
+// ============================================================
+
+describe("HOST_PORT_MASK", () => {
+  it("should mask hostname:port patterns", () => {
+    const masker = new LogMasker([HOST_PORT_MASK], "<", ">");
+    expect(masker.mask("proxy.example.com:5070")).toBe("<HOST_PORT>");
+    expect(masker.mask("from proxy.example.com:5070")).toBe(
+      "from <HOST_PORT>",
+    );
+    expect(masker.mask("10.0.0.1:8080 connection")).toBe(
+      "<HOST_PORT> connection",
+    );
+  });
+
+  it("should mask hostname:port with multiple subdomains", () => {
+    const masker = new LogMasker([HOST_PORT_MASK], "<", ">");
+    // 5-component hostname common in Proxifier
+    expect(
+      masker.mask("proxy.cse.cuhk.edu.hk:5070 close"),
+    ).toBe("<HOST_PORT> close");
+    expect(
+      masker.mask("101.0.12.7.0.rst8.r.skype.net:12350"),
+    ).toBe("<HOST_PORT>");
+  });
+
+  it("should mask IPv4:port when IP_MASK is absent", () => {
+    const masker = new LogMasker([HOST_PORT_MASK], "<", ">");
+    expect(masker.mask("192.168.1.1:8080")).toBe("<HOST_PORT>");
+  });
+
+  it("should handle consecutive hostname:port in one message", () => {
+    const masker = new LogMasker([HOST_PORT_MASK], "<", ">");
+    expect(
+      masker.mask("proxy.a.com:5070 open through proxy proxy.b.com:8080 HTTPS"),
+    ).toBe("<HOST_PORT> open through proxy <HOST_PORT> HTTPS");
+  });
+
+  it("should not mask hostname without port", () => {
+    const masker = new LogMasker([HOST_PORT_MASK], "<", ">");
+    expect(masker.mask("proxy.example.com")).toBe("proxy.example.com");
+    expect(masker.mask("localhost")).toBe("localhost");
+  });
+
+  it("should mask dot-containing Java-style identifiers with port", () => {
+    const masker = new LogMasker([HOST_PORT_MASK], "<", ">");
+    // The regex is greedy: dot-separated word sequences with a port suffix
+    // will match even if they are not traditional hostnames.
+    expect(masker.mask("com.android.server:3407")).toBe("<HOST_PORT>");
+  });
+
+  it("should mask hostname:port in a real Proxifier log message", () => {
+    const masker = new LogMasker([HOST_PORT_MASK], "<", ">");
+    const msg =
+      "proxy.cse.cuhk.edu.hk:5070 close, 0 bytes sent, 0 bytes received, lifetime <1 sec";
+    expect(masker.mask(msg)).toBe(
+      "<HOST_PORT> close, 0 bytes sent, 0 bytes received, lifetime <1 sec",
+    );
+  });
+});
+
+// ============================================================
+// Masking instruction order tests
+// ============================================================
+
+describe("Masking instruction order", () => {
+  it("should apply HOST_PORT before NUM so hostname:port is not split", () => {
+    // BUG: when NUM runs before HOST_PORT, :5070 → :<NUM> and
+    // HOST_PORT regex (expecting :\\d+) silently fails.
+    // The hostname portion stays unmasked, causing cluster explosion.
+    const masker = new LogMasker(
+      [HOST_PORT_MASK, NUM_MASK],
+      "<",
+      ">",
+    );
+    const msg =
+      "proxy.cse.cuhk.edu.hk:5070 close, 0 bytes sent, 0 bytes received";
+    const result = masker.mask(msg);
+    // Hostname:port should be masked as a single HOST_PORT token
+    expect(result).toBe(
+      "<HOST_PORT> close, <NUM> bytes sent, <NUM> bytes received",
+    );
+    // The hostname MUST NOT be left unmasked
+    expect(result).not.toContain("proxy.cse.cuhk.edu.hk");
+  });
+
+  it("EXTENDED_MASKING_INSTRUCTIONS: HOST_PORT should precede NUM", () => {
+    const hostPortIdx = EXTENDED_MASKING_INSTRUCTIONS.findIndex(
+      (inst) => inst.maskName === "HOST_PORT",
+    );
+    const numIdx = EXTENDED_MASKING_INSTRUCTIONS.findIndex(
+      (inst) => inst.maskName === "NUM",
+    );
+    expect(hostPortIdx).toBeLessThan(numIdx);
+  });
+
+  it("EXTENDED_MASKING_INSTRUCTIONS: should mask Proxifier message correctly", () => {
+    const masker = new LogMasker(
+      [...EXTENDED_MASKING_INSTRUCTIONS],
+      "<",
+      ">",
+    );
+    const msg =
+      "proxy.cse.cuhk.edu.hk:5070 close, 0 bytes sent, 0 bytes received, lifetime <1 sec";
+    const result = masker.mask(msg);
+    // The full hostname:port must be masked
+    expect(result).toContain("<HOST_PORT>");
+    // No unmasked hostname fragments should remain
+    expect(result).not.toContain("proxy.cse.cuhk.edu.hk");
+    expect(result).not.toContain("cuhk.edu.hk");
+  });
+
+  it("should not regress IP masking when HOST_PORT precedes NUM", () => {
+    const masker = new LogMasker(
+      [IP_MASK, HOST_PORT_MASK, NUM_MASK],
+      "<",
+      ">",
+    );
+    // IP should still be masked before HOST_PORT sees it
+    expect(masker.mask("from 192.168.1.1 port 8080")).toBe(
+      "from <IP> port <NUM>",
+    );
+  });
+
+  it("should correctly mask IPv4:port combinations", () => {
+    // IP_MASK matches 192.168.1.1 standalone. With IP_MASK first,
+    // it captures the IP portion of 192.168.1.1:8080 (colon is non-alnum
+    // so the lookahead matches). HOST_PORT then runs on <IP>:8080 but
+    // the mask prefix "<" is not [\\w], so HOST_PORT cannot match.
+    // NUM handles the remaining 8080. Result: <IP>:<NUM>.
+    const masker = new LogMasker(
+      [IP_MASK, HOST_PORT_MASK, NUM_MASK],
+      "<",
+      ">",
+    );
+    expect(masker.mask("192.168.1.1:8080 connection")).toBe(
+      "<IP>:<NUM> connection",
+    );
+    // Standalone IP still masked by IP
+    expect(masker.mask("from 192.168.1.1")).toBe("from <IP>");
+    // Hostname:port (non-IP) handled by HOST_PORT
+    expect(masker.mask("proxy.example.com:5070")).toBe("<HOST_PORT>");
+  });
+
+  it("should handle messages with multiple hostname:port and IP patterns", () => {
+    const masker = new LogMasker(
+      [IP_MASK, HOST_PORT_MASK, NUM_MASK],
+      "<",
+      ">",
+    );
+    const msg =
+      "10.0.0.1 connected to proxy.example.com:5070 and proxy2.example.com:8080";
+    expect(masker.mask(msg)).toBe(
+      "<IP> connected to <HOST_PORT> and <HOST_PORT>",
+    );
   });
 });

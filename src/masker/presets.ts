@@ -136,15 +136,15 @@ export const SYSLOG_NUM_MASK = new MaskingInstruction(
 export const DEFAULT_MASKING_INSTRUCTIONS: readonly MaskingInstruction[] =
   Object.freeze([IP_MASK, NUM_MASK]);
 
-/** Extended preset set: IP, NUM, HEX, UUID, EMAIL, HOST_PORT, PATH, BLOCK_ID, SYSLOG_NUM. */
+/** Extended preset set: IP, HOST_PORT, NUM, HEX, UUID, EMAIL, PATH, BLOCK_ID, SYSLOG_NUM. */
 export const EXTENDED_MASKING_INSTRUCTIONS: readonly MaskingInstruction[] =
   Object.freeze([
     IP_MASK,
+    HOST_PORT_MASK,
     NUM_MASK,
     HEX_MASK,
     UUID_MASK,
     EMAIL_MASK,
-    HOST_PORT_MASK,
     PATH_MASK,
     BLOCK_ID_MASK,
     SYSLOG_NUM_MASK,
