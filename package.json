@@ -76,7 +76,7 @@
     "@vitest/coverage-v8": "^4.1.10",
     "esbuild": "^0.28.1",
     "eslint": "^9.39.5",
-    "playwright": "^1.62.0",
+    "playwright": "^1.62.1",
     "prettier": "^3.9.6",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
