@@ -74,7 +74,7 @@
     "@playwright/test": "^1.62.0",
     "@types/node": "^22.20.1",
     "@vitest/coverage-v8": "^4.1.10",
-    "esbuild": "^0.28.1",
+    "esbuild": "^0.28.2",
     "eslint": "^9.39.5",
     "playwright": "^1.62.0",
     "prettier": "^3.9.6",
@@ -88,7 +88,7 @@
       "esbuild"
     ],
     "overrides": {
-      "esbuild": "0.28.1"
+      "esbuild": "0.28.2"
     }
   }
 }
